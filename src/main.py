@@ -544,13 +544,10 @@ class MainWindow(QWidget):
         self.temp_sensor_data = temp_sensor_data
         self.initUI()
 
-    def stopThreads(self):
-        self.get_thread.quit()
-        self.get_thread.wait()
-
     def closeEvent(self, event):
-        print("Closing window")
+        print("Closing window...")
         self.stop_getting_data()
+        event.accept()  # Allow the window to close
 
     def initUI(self):
         self.textboxLogMessage = QPlainTextEdit(self)
@@ -1103,19 +1100,45 @@ class MainWindow(QWidget):
         self.first_run = False
 
     def stop_getting_data(self):
-        #self.get_thread.exiting=True
-        #self.sb.showMessage("Main Polling Thread Stopped. Ready")
-        #self.keg_thread1.terminate()
-        self.keg_thread1.shutdown()
-        self.keg_thread2.shutdown()
-        self.keg_thread3.shutdown()
-        self.keg_thread4.shutdown()
-        self.keg_thread5.shutdown()
-        self.tv_thread.shutdown()
-        self.pb_thread.shutdown()
-        self.led_thread.shutdown()
-        self.temp_sensor_thread.shutdown()
-        #self.keg_thread1.join()
+        print("Stopping all threads and processes...")
+
+        # Stop the QThread first
+        if hasattr(self, 'get_thread'):
+            self.get_thread.exiting = True
+            self.get_thread.quit()
+            if not self.get_thread.wait(5000):  # Wait up to 5 seconds
+                print("Warning: gatherDataThread did not stop cleanly")
+
+        # Shutdown all hardware processes
+        processes = [
+            ('keg_thread1', self.keg_thread1),
+            ('keg_thread2', self.keg_thread2),
+            ('keg_thread3', self.keg_thread3),
+            ('keg_thread4', self.keg_thread4),
+            ('keg_thread5', self.keg_thread5),
+            ('tv_thread', self.tv_thread),
+            ('pb_thread', self.pb_thread),
+            ('led_thread', self.led_thread),
+            ('temp_sensor_thread', self.temp_sensor_thread)
+        ]
+
+        for name, proc in processes:
+            try:
+                print(f"Shutting down {name}...")
+                proc.shutdown()
+                proc.join(timeout=5)
+                if proc.is_alive():
+                    print(f"Warning: {name} did not exit cleanly, terminating...")
+                    proc.terminate()
+                    proc.join(timeout=2)
+                    if proc.is_alive():
+                        print(f"Error: {name} still alive after terminate")
+                else:
+                    print(f"{name} stopped successfully")
+            except Exception as e:
+                print(f"Error stopping {name}: {e}")
+
+        print("All threads and processes stopped.")
 
     def update_lcdBeerRemaining1(self, BeerRemaining1):
         self.lcdBeerRemaining1.display(BeerRemaining1)
@@ -1866,8 +1889,15 @@ def main():
                                                     keg_thread5, keg_data5, keg_message5, keg_dict5,
                                                     tv_thread, tv_message_m2t, tv_message_t2m, pb_thread, pb_data, led_thread, led_data, temp_sensor_thread, temp_sensor_data)
     signal.signal(signal.SIGINT, signal.SIG_DFL)
-    sys.exit(app.exec())
-    ex.stopThreads()
+
+    try:
+        exit_code = app.exec()
+    finally:
+        # Ensure cleanup happens even if app crashes
+        print("Application closing, cleaning up...")
+        ex.stop_getting_data()
+
+    sys.exit(exit_code)
 
 if __name__ == '__main__':
     main()
