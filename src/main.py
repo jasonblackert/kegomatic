@@ -12,8 +12,6 @@ from PyQt6.QtWidgets import QApplication, QWidget, QPlainTextEdit, QFrame, QLabe
 import multiprocessing
 from queue import Full,Empty
 
-logo_image = 'logos/Jason_Blackert_Venmo.png'
-
 import sys
 import numpy as np
 import time
@@ -40,6 +38,10 @@ with open(_env_path) as _f:
         if _line and not _line.startswith('#') and '=' in _line:
             _k, _v = _line.split('=', 1)
             os.environ.setdefault(_k.strip(), _v.strip())
+
+# Get the directory where this script is located for relative paths
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+logo_image = os.path.join(SCRIPT_DIR, 'logos', 'Jason_Blackert_Venmo.png')
 
 from flowmeter import *
 
@@ -582,27 +584,27 @@ class MainWindow(QWidget):
         lblVenmo.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
 
         lblBreweryLogo1 = QLabel(self)
-        pixmap1 = QtGui.QPixmap('logos/' + self.keg_dict1['logo'])
+        pixmap1 = QtGui.QPixmap(os.path.join(SCRIPT_DIR, 'logos', self.keg_dict1['logo']))
         lblBreweryLogo1.setPixmap(pixmap1)
         lblBreweryLogo1.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
 
         lblBreweryLogo2 = QLabel(self)
-        pixmap2 = QtGui.QPixmap('logos/' + self.keg_dict2['logo'])
+        pixmap2 = QtGui.QPixmap(os.path.join(SCRIPT_DIR, 'logos', self.keg_dict2['logo']))
         lblBreweryLogo2.setPixmap(pixmap2)
         lblBreweryLogo2.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
 
         lblBreweryLogo3 = QLabel(self)
-        pixmap3 = QtGui.QPixmap('logos/' + self.keg_dict3['logo'])
+        pixmap3 = QtGui.QPixmap(os.path.join(SCRIPT_DIR, 'logos', self.keg_dict3['logo']))
         lblBreweryLogo3.setPixmap(pixmap3)
         lblBreweryLogo3.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
 
         lblBreweryLogo4 = QLabel(self)
-        pixmap4 = QtGui.QPixmap('logos/' + self.keg_dict4['logo'])
+        pixmap4 = QtGui.QPixmap(os.path.join(SCRIPT_DIR, 'logos', self.keg_dict4['logo']))
         lblBreweryLogo4.setPixmap(pixmap4)
         lblBreweryLogo4.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
 
         lblBreweryLogo5 = QLabel(self)
-        pixmap5 = QtGui.QPixmap('logos/' + self.keg_dict5['logo'])
+        pixmap5 = QtGui.QPixmap(os.path.join(SCRIPT_DIR, 'logos', self.keg_dict5['logo']))
         lblBreweryLogo5.setPixmap(pixmap5)
         lblBreweryLogo5.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
 
@@ -1811,7 +1813,7 @@ def main():
 
     # Read Config File
     try:
-        Config.read("config/kegs.config")
+        Config.read(os.path.join(SCRIPT_DIR, "config", "kegs.config"))
     except:
         logging.error("Unable to read config file")
         sys.exit()
@@ -1879,7 +1881,7 @@ def main():
     led_thread = led_control(led_data, 18)
 
     app = QApplication(sys.argv)
-    sshFile="darkorange.stylesheet"
+    sshFile = os.path.join(SCRIPT_DIR, "darkorange.stylesheet")
     with open(sshFile,"r") as fh:
         app.setStyleSheet(fh.read())
     ex = MainWindow(fullscreen_flag, autostart_flag, keg_thread1, keg_data1, keg_message1, keg_dict1,

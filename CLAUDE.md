@@ -9,13 +9,18 @@ Kegomatic is a Raspberry Pi kiosk application that monitors up to 5 office keg t
 ## Running the Application
 
 ```bash
-# Normal startup (as run on the Pi)
-cd ~/src
+# From the repository root, use the start script
+bash start_keg.sh
+
+# Or run directly from the src directory
+cd src
 python main.py --autostart --fullscreen
 
-# Or via the start script
-bash start_keg.sh
+# Or run from anywhere
+python /path/to/kegomatic/src/main.py --autostart --fullscreen
 ```
+
+All paths are now relative to the script location, so the app can be run from any directory.
 
 ## Architecture
 

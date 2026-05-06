@@ -145,6 +145,13 @@ ENV/
 env.bak/
 venv.bak/
 
+# Kegomatic - local data files
+src/logos/*.png
+src/logos/*.jpg
+src/logos/*.jpeg
+src/config/kegs.config
+setup_database.sh
+
 # Spyder project settings
 .spyderproject
 .spyproject

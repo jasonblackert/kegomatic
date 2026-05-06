@@ -4,7 +4,7 @@ BaudRate: 9600
 SleepTimeSec: 360
 
 [Active]
-keg1: EE
+keg1: EG
 keg2: AC 
 keg3: AC
 keg4: AC
@@ -361,3 +361,26 @@ CostOfKeg: 45
 KegSizeL: 20
 PurchaseDate:08222025
 Logo: peets.png
+
+[EF]
+Name: Peet's Major Ds
+Brewery: Warehouse
+Type: Coffee
+ABV: N/A
+IBU: 0
+CostOfKeg: 45 
+KegSizeL: 20
+PurchaseDate:08222025
+Logo: peets.png
+
+[EG]
+Name: Peet's Major Ds
+Brewery: Warehouse
+Type: Coffee
+ABV: N/A
+IBU: 0
+CostOfKeg: 45 
+KegSizeL: 20
+PurchaseDate:08222025
+Logo: peets.png
+
