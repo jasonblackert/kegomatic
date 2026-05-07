@@ -620,6 +620,7 @@ body {
 }
 
 .btn-edit,
+.btn-empty,
 .btn-replace {
     width: 100%;
     padding: 0.75rem 0.5rem;
@@ -639,6 +640,15 @@ body {
 
 .btn-edit:hover {
     background: #505050;
+}
+
+.btn-empty {
+    background: #ff8c00;
+    color: var(--bg-dark);
+}
+
+.btn-empty:hover {
+    background: #ff7700;
 }
 
 .btn-replace {
@@ -898,6 +908,7 @@ body {
 }
 
 .btn-cancel,
+.btn-set-empty,
 .btn-save {
     flex: 1;
     padding: 0.75rem 1rem;
@@ -917,6 +928,15 @@ body {
 
 .btn-cancel:hover {
     background: var(--border-color);
+}
+
+.btn-set-empty {
+    background: #ff6b35;
+    color: var(--text-primary);
+}
+
+.btn-set-empty:hover {
+    background: #ff8555;
 }
 
 .btn-save {

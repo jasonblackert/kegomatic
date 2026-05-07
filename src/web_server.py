@@ -583,6 +583,70 @@ def import_backup():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@app.route('/api/keg/<int:keg_number>/calculate-empty', methods=['GET'])
+def calculate_empty_keg(keg_number):
+    """Calculate what the keg size should be to make it exactly empty based on pours"""
+    try:
+        config_path = os.path.join(SCRIPT_DIR, 'config', 'kegs.config')
+
+        # Read config
+        config = configparser.ConfigParser()
+        config.read(config_path)
+
+        # Get current keg ID
+        active_section = 'Active'
+        keg_key = f'keg{keg_number}'
+
+        if not config.has_option(active_section, keg_key):
+            return jsonify({'success': False, 'error': f'Tap {keg_number} not found'})
+
+        current_keg_id = config.get(active_section, keg_key)
+
+        if not config.has_section(current_keg_id):
+            return jsonify({'success': False, 'error': f'Keg {current_keg_id} not found'})
+
+        # Get current keg size
+        current_size_l = float(config.get(current_keg_id, 'KegSizeL', fallback=20))
+
+        # Calculate total poured from database
+        try:
+            import mysql.connector
+            db = mysql.connector.connect(
+                host=os.environ.get('DB_HOST', 'localhost'),
+                user=os.environ.get('DB_USER', 'kegomatic'),
+                password=os.environ.get('DB_PASSWORD', ''),
+                database=os.environ.get('DB_NAME', 'keg')
+            )
+            cursor = db.cursor()
+            cursor.execute('SELECT * FROM pours WHERE kegid = %s', (current_keg_id,))
+
+            poured_l = 0.0
+            for row in cursor.fetchall():
+                poured_l += float(row[3])  # Column 3 is pour amount in liters
+
+            cursor.close()
+            db.close()
+
+            # New size = amount poured (so remaining = 0)
+            new_size_l = poured_l
+
+            return jsonify({
+                'success': True,
+                'current_size_l': current_size_l,
+                'poured_l': poured_l,
+                'new_size_l': new_size_l,
+                'keg_id': current_keg_id
+            })
+
+        except Exception as db_error:
+            logging.error(f"Database error calculating pours: {db_error}")
+            return jsonify({'success': False, 'error': f'Database error: {str(db_error)}'})
+
+    except Exception as e:
+        logging.error(f"Error calculating empty keg: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+
 # SocketIO Events
 
 @socketio.on('connect')

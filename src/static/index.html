@@ -227,6 +227,7 @@
                     </div>
                     <div class="keg-section-buttons">
                         <button class="btn-edit" data-keg="1">Edit Current</button>
+                        <button class="btn-empty" data-keg="1">Empty Keg</button>
                         <button class="btn-replace" data-keg="1">Replace Keg</button>
                     </div>
                 </div>
@@ -236,6 +237,7 @@
                     </div>
                     <div class="keg-section-buttons">
                         <button class="btn-edit" data-keg="2">Edit Current</button>
+                        <button class="btn-empty" data-keg="2">Empty Keg</button>
                         <button class="btn-replace" data-keg="2">Replace Keg</button>
                     </div>
                 </div>
@@ -245,6 +247,7 @@
                     </div>
                     <div class="keg-section-buttons">
                         <button class="btn-edit" data-keg="3">Edit Current</button>
+                        <button class="btn-empty" data-keg="3">Empty Keg</button>
                         <button class="btn-replace" data-keg="3">Replace Keg</button>
                     </div>
                 </div>
@@ -254,6 +257,7 @@
                     </div>
                     <div class="keg-section-buttons">
                         <button class="btn-edit" data-keg="4">Edit Current</button>
+                        <button class="btn-empty" data-keg="4">Empty Keg</button>
                         <button class="btn-replace" data-keg="4">Replace Keg</button>
                     </div>
                 </div>
@@ -263,6 +267,7 @@
                     </div>
                     <div class="keg-section-buttons">
                         <button class="btn-edit" data-keg="5">Edit Current</button>
+                        <button class="btn-empty" data-keg="5">Empty Keg</button>
                         <button class="btn-replace" data-keg="5">Replace Keg</button>
                     </div>
                 </div>
@@ -375,6 +380,23 @@
                         <button type="submit" class="btn-save">Save</button>
                     </div>
                 </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Set as Empty Confirmation Modal -->
+    <div id="empty-confirm-modal" class="keg-form-modal">
+        <div class="keg-form-content">
+            <div class="keg-form-header">
+                <h2>Set Keg as Empty</h2>
+                <button class="close-button" id="close-empty-confirm">✕</button>
+            </div>
+            <div class="keg-form-body">
+                <p id="empty-confirm-message" style="text-align: center; font-size: 1.1rem; color: var(--text-primary); margin-bottom: 1.5rem;"></p>
+                <div class="form-actions">
+                    <button type="button" class="btn-cancel" id="cancel-empty-confirm">Cancel</button>
+                    <button type="button" class="btn-save" id="confirm-empty-btn">Confirm</button>
+                </div>
             </div>
         </div>
     </div>

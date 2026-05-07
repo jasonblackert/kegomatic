@@ -254,7 +254,28 @@ function updateProgressBar(kegId, percent) {
 
     if (percentText) {
         const roundedPercent = Math.round(percent);
-        percentText.textContent = roundedPercent === 0 ? 'n/a' : `${roundedPercent}%`;
+        if (roundedPercent === 0) {
+            percentText.textContent = 'EMPTY';
+            // Also update status to Keg Empty
+            const statusElement = document.getElementById(`status-${kegId}`);
+            if (statusElement) {
+                statusElement.classList.add('empty');
+                statusElement.classList.remove('pouring');
+                const statusText = statusElement.querySelector('.status-text') || statusElement;
+                if (statusText.querySelector) {
+                    // Has child elements, update text node
+                    const textNodes = Array.from(statusText.childNodes).filter(n => n.nodeType === 3);
+                    if (textNodes.length > 0) {
+                        textNodes[0].textContent = 'Keg Empty';
+                    }
+                } else {
+                    // Direct text content
+                    statusElement.innerHTML = '<span class="status-dot"></span> Keg Empty';
+                }
+            }
+        } else {
+            percentText.textContent = `${roundedPercent}%`;
+        }
     }
 }
 
@@ -483,11 +504,31 @@ function setupSettingsMenu() {
         kegFormModal.classList.remove('visible');
     });
 
-    // Edit/Replace button handlers
+    // Empty confirmation modal handlers
+    document.getElementById('close-empty-confirm').addEventListener('click', () => {
+        document.getElementById('empty-confirm-modal').classList.remove('visible');
+    });
+
+    document.getElementById('cancel-empty-confirm').addEventListener('click', () => {
+        document.getElementById('empty-confirm-modal').classList.remove('visible');
+    });
+
+    document.getElementById('confirm-empty-btn').addEventListener('click', async () => {
+        await setKegAsEmpty();
+    });
+
+    // Edit/Replace/Empty button handlers
     document.querySelectorAll('.btn-edit').forEach(btn => {
         btn.addEventListener('click', (e) => {
             const kegNum = e.target.dataset.keg;
             openKegForm(kegNum, 'edit');
+        });
+    });
+
+    document.querySelectorAll('.btn-empty').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            const kegNum = e.target.dataset.keg;
+            await showEmptyConfirmation(kegNum);
         });
     });
 
@@ -768,5 +809,91 @@ async function importBackup(file) {
         console.error('Error importing backup:', error);
         addLogMessage(`✗ Backup import failed: ${error.message}`);
         alert(`Error importing backup: ${error.message}`);
+    }
+}
+
+async function showEmptyConfirmation(kegNum) {
+    try {
+        // Get the calculated empty size from the server
+        const response = await fetch(`/api/keg/${kegNum}/calculate-empty`);
+        const result = await response.json();
+
+        if (result.success) {
+            const currentSize = result.current_size_l;
+            const pouredAmount = result.poured_l;
+            const newSize = result.new_size_l;
+
+            // Store keg number for the confirmation action
+            document.getElementById('confirm-empty-btn').dataset.keg = kegNum;
+
+            // Show confirmation message
+            const message = `This will update the keg size from ${currentSize.toFixed(2)} L to ${newSize.toFixed(2)} L based on ${pouredAmount.toFixed(2)} L poured.\n\nAre you sure?`;
+            document.getElementById('empty-confirm-message').textContent = message;
+            document.getElementById('empty-confirm-modal').classList.add('visible');
+        } else {
+            alert(`Error: ${result.error}`);
+        }
+    } catch (error) {
+        console.error('Error calculating empty size:', error);
+        alert(`Error calculating empty size: ${error.message}`);
+    }
+}
+
+async function setKegAsEmpty() {
+    const kegNum = document.getElementById('confirm-empty-btn').dataset.keg;
+
+    try {
+        // Get the calculated size
+        const calcResponse = await fetch(`/api/keg/${kegNum}/calculate-empty`);
+        const calcResult = await calcResponse.json();
+
+        if (!calcResult.success) {
+            throw new Error(calcResult.error);
+        }
+
+        // Get current keg data from config
+        const currentKeg = config.kegs[kegNum];
+        const kegData = {
+            name: currentKeg.Name,
+            brewery: currentKeg.Brewery,
+            type: currentKeg.Type,
+            abv: currentKeg.ABV,
+            ibu: currentKeg.IBU,
+            costofkeg: parseFloat(currentKeg.CostOfKeg),
+            kegsizel: calcResult.new_size_l,  // Use calculated size
+            purchasedate: currentKeg.PurchaseDate,
+            logo: currentKeg.Logo
+        };
+
+        // Update via edit endpoint
+        const response = await fetch('/api/keg/edit', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                keg_number: parseInt(kegNum),
+                keg_data: kegData
+            })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            // Close confirmation modal
+            document.getElementById('empty-confirm-modal').classList.remove('visible');
+
+            // Reload config
+            await fetchInitialConfig();
+            updateSettingsModal();
+
+            addLogMessage(`✓ Keg ${kegNum} set as empty (restart required)`);
+            alert('Keg set as empty successfully!\n\nSoftware restart required for changes to take effect.');
+        } else {
+            throw new Error(result.error);
+        }
+    } catch (error) {
+        console.error('Error setting keg as empty:', error);
+        alert(`Error setting keg as empty: ${error.message}`);
     }
 }
