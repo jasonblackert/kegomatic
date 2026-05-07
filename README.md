@@ -30,9 +30,26 @@ A Raspberry Pi kiosk application that monitors up to 5 office keg taps in real t
 
 ## Software Dependencies
 
+### System Packages (Raspberry Pi OS)
+
+Install system dependencies first:
+
+```bash
+# Update package list
+sudo apt-get update
+
+# Required for pywebview GUI window
+sudo apt-get install python3-gi python3-gi-cairo gir1.2-gtk-3.0 gir1.2-webkit2-4.0
+sudo apt-get install pkg-config libgtk-3-dev libwebkit2gtk-4.0-dev
+```
+
+### Python Packages
+
 ```bash
 pip install Flask Flask-SocketIO python-socketio pywebview gpiozero mysql-connector-python numpy pyserial
 ```
+
+**Note:** If you have trouble installing `pywebview` or don't need the standalone window, you can skip it and run with the `--no-window` flag to use your browser instead.
 
 Runs on Raspberry Pi OS. The `gpiozero` library requires either running as root or the user being in the `gpio` group.
 

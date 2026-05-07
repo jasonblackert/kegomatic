@@ -93,7 +93,35 @@ The `[TV]` section configures the serial port used for TV power control (`/dev/t
 
 ## Dependencies
 
-Python packages: `Flask`, `Flask-SocketIO`, `python-socketio`, `pywebview`, `gpiozero`, `mysql-connector-python`, `numpy`, `pyserial`
+### Important Note for Python 3.13+
+**pywebview may not be compatible with Python 3.13+**. It works well on Python 3.9-3.12. If using Python 3.13+:
+- The app will automatically fall back to browser mode
+- Or use `--no-window` flag explicitly
+- Or downgrade to Python 3.9-3.12 if you need the window feature
+
+### System Packages (Raspberry Pi OS)
+
+**Option 1: GTK Backend (try first)**
+```bash
+sudo apt-get install python3-gi python3-gi-cairo gir1.2-gtk-3.0
+sudo apt-get install pkg-config libgtk-3-dev
+
+# Try to install webkit2gtk (package name varies by OS version)
+sudo apt-get install gir1.2-webkit2-4.1  # or gir1.2-webkit2-4.0
+```
+
+**Option 2: QT Backend (if GTK doesn't work)**
+```bash
+sudo apt-get install python3-pyqt5 python3-pyqt5.qtwebengine
+```
+
+**Option 3: Skip GUI Window Entirely (recommended for Python 3.13)**
+Run with `--no-window` flag to use browser instead of pywebview window.
+
+### Python Packages
+`Flask`, `Flask-SocketIO`, `python-socketio`, `gpiozero`, `mysql-connector-python`, `numpy`, `pyserial`
+
+**Note:** `pywebview` is optional and **not compatible with Python 3.13**. The app will automatically fall back to opening a browser if pywebview fails. Use `--no-window` flag for explicit browser-only mode.
 
 Runs on Raspberry Pi OS. GPIO pins 2/3 have hardware pull-ups (I2C) and cannot be reconfigured. Pin 4 is reserved for 1-wire (temperature sensor).
 

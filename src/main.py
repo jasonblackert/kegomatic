@@ -309,12 +309,35 @@ def main():
             webview.create_window(**window_config)
             webview.start()
 
-        except ImportError:
-            print("Warning: pywebview not available, opening browser instead")
+        except ImportError as e:
+            print(f"Warning: pywebview not available: {e}")
+            print("Opening browser instead...")
             import webbrowser
             webbrowser.open(url)
             print("\nPress Ctrl+C to stop")
             try:
+                while True:
+                    time.sleep(1)
+            except KeyboardInterrupt:
+                print("\nKeyboard interrupt received")
+        except Exception as e:
+            print(f"Error launching pywebview window: {e}")
+            print(f"Python version: {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}")
+
+            # Check if it's a Python 3.13+ compatibility issue
+            if sys.version_info >= (3, 13):
+                print("\nNote: pywebview may not be compatible with Python 3.13+")
+                print("Consider using Python 3.9-3.12, or run with --no-window flag")
+
+            print("\nOpening browser as fallback...")
+            import webbrowser
+            webbrowser.open(url)
+            print("\nPress Ctrl+C to stop")
+            try:
+                while True:
+                    time.sleep(1)
+            except KeyboardInterrupt:
+                print("\nKeyboard interrupt received")
                 while True:
                     time.sleep(1)
             except KeyboardInterrupt:
