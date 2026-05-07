@@ -1,6 +1,6 @@
 # Kegomatic
 
-A Raspberry Pi kiosk application that monitors up to 5 office keg taps in real time. It displays beer info, pour volume, pour cost, instantaneous flow rate, and keg fill level for each tap on a fullscreen PyQt6 GUI. Pour history is persisted to a local MySQL database.
+A Raspberry Pi kiosk application that monitors up to 5 office keg taps in real time. It displays beer info, pour volume, pour cost, instantaneous flow rate, and keg fill level for each tap via a web-based UI with real-time WebSocket updates. Pour history is persisted to a local MySQL database.
 
 ---
 
@@ -31,7 +31,7 @@ A Raspberry Pi kiosk application that monitors up to 5 office keg taps in real t
 ## Software Dependencies
 
 ```bash
-pip install PyQt6 gpiozero mysql-connector-python numpy pyserial
+pip install Flask Flask-SocketIO python-socketio pywebview gpiozero mysql-connector-python numpy pyserial
 ```
 
 Runs on Raspberry Pi OS. The `gpiozero` library requires either running as root or the user being in the `gpio` group.
@@ -54,26 +54,45 @@ The `pours` table is expected to exist with at least columns for date, time, keg
 ## Running the Application
 
 ```bash
-# Start the kiosk (fullscreen, auto-start polling)
+# Start the kiosk (fullscreen pywebview window)
 cd ~/src
-python main.py --autostart --fullscreen
+python main.py --fullscreen
 
 # Or via the convenience script
 bash start_keg.sh
 
+# Run with browser only (no pywebview window)
+python main.py --no-window
+
+# Specify custom port (default is 5000)
+python main.py --port 8080
+
 # Debug / development flags
-python main.py --autostart --fullscreen --debug   # DEBUG log level
-python main.py --autostart --fullscreen --info    # INFO log level
+python main.py --fullscreen --debug   # DEBUG log level
+python main.py --fullscreen --info    # INFO log level
 # Default (no flag) is WARNING level only
 ```
 
-The app must be run from `src/` because it resolves paths to `config/kegs.config` and `logos/` relative to the working directory.
+The app can be run from any directory as all paths are resolved relative to the script location.
 
 ---
 
 ## Updating Kegs
 
-Edit `src/config/kegs.config` (INI format), then **reboot the Pi**.
+Kegs can be updated via the web UI settings menu or by editing the config file directly.
+
+### Via Web UI (Recommended)
+
+1. Click the settings button (⚙️) in the bottom-right corner of the display
+2. For each tap, use the action buttons:
+   - **Edit Current** — Modify keg details (name, brewery, type, ABV, IBU, cost, size, date, logo)
+   - **Empty Keg** — Mark keg as empty by setting size to the amount poured (calculated from database)
+   - **Replace Keg** — Swap in a new keg, preserving the old keg data in the config
+3. Changes require restarting the application to take effect
+
+### Via Config File
+
+Edit `src/config/kegs.config` (INI format), then **restart the application**.
 
 ### Step 1 — Add a new keg entry
 
@@ -110,10 +129,12 @@ keg4: AC
 keg5: AC
 ```
 
-### Step 3 — Reboot
+### Step 3 — Restart the Application
 
 ```bash
-sudo reboot
+# Restart the application to load the new config
+pkill -f main.py
+python main.py --fullscreen
 ```
 
 ---
@@ -128,20 +149,20 @@ Drop a PNG into `src/logos/` and reference the filename in the keg's `Logo:` fie
 
 ### Process/Thread Model
 
-The app uses `multiprocessing.Process` for all hardware I/O, with `multiprocessing.Queue` objects passing data to the UI. Each queue has a small max size (5–10 items); items are dropped with a warning log if a queue is full.
+The app uses `multiprocessing.Process` for all hardware I/O, with `multiprocessing.Queue` objects passing data to the web server. Each queue has a small max size (5–10 items); items are dropped with a warning log if a queue is full.
 
 ```
-[read_keg_data x5]  ──keg_data_q──▶
-[monitor_temp_sensor] ──temp_q────▶  gatherDataThread (QThread)  ──Qt signals──▶  MainWindow (PyQt6)
-[monitor_push_button] ──pb_q──────▶
-[led_control]       ◀──led_q──────
-[manage_tv_power]   ◀──tv_m2t_q──
-                    ──tv_t2m_q──▶
+[read_keg_data x5]      ──keg_data_q──▶
+[monitor_temp_sensor]   ──temp_q──────▶  DataGatherer (Thread)  ──WebSocket──▶  Browser UI
+[monitor_push_button]   ──pb_q────────▶  (Flask-SocketIO)                       (JavaScript)
+[led_control]           ◀──led_q──────
+[manage_tv_power]       ◀──tv_m2t_q───
+                        ──tv_t2m_q────▶
 ```
 
-- **`gatherDataThread`** polls all queues every 100ms and emits Qt signals to update LCD displays, progress bars, and labels in `MainWindow`.
-- **`read_keg_data`** — one process per tap. Listens for GPIO pulses via `gpiozero.Button`, updates a `FlowMeter` instance, writes completed pours to MySQL, and emits a log message string.
-- **`manage_tv_power`** — controls TV sleep/wake via RS-232C. The TV auto-sleeps after `SleepTimeSec` (from `[TV]` config). A pour event or pushbutton press wakes it. **Note:** the wake-on-pour code path has a bug (`if wake_tv == "Help me"` is never true); the TV currently only wakes from a button press.
+- **`DataGatherer`** thread polls all queues every 100ms and emits WebSocket messages (via Flask-SocketIO) to update the browser UI in real-time.
+- **`read_keg_data`** — one process per tap. Listens for GPIO pulses via `gpiozero.Button`, updates a `FlowMeter` instance, writes completed pours to MySQL, and emits log message strings.
+- **`manage_tv_power`** — controls TV sleep/wake via RS-232C. The TV auto-sleeps after `SleepTimeSec` (from `[TV]` config). A pour event or pushbutton press wakes it.
 - **`led_control`** — sinusoidal PWM pulse when idle (sleep state); steady 1Hz blink when active.
 - **`monitor_temp_sensor`** — polls DS18B20 every 0.5s. Silently does nothing if no 1-wire sensor is found.
 
