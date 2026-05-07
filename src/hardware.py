@@ -55,13 +55,15 @@ def ConfigSectionMap(section):
 
 class read_keg_data(multiprocessing.Process):
 
-    def __init__(self, keg_data_q, keg_message_q, keg_dict, gpio_pin, click_q=None):
+    def __init__(self, keg_data_q, keg_message_q, keg_dict, gpio_pin, tv_message_q=None, led_message_q=None, click_q=None):
         multiprocessing.Process.__init__(self)
         self.exit = multiprocessing.Event()
         self.keg_data_q = keg_data_q
         self.keg_message_q = keg_message_q
         self.keg_dict = keg_dict
         self.gpio_pin = int(gpio_pin)
+        self.tv_message_q = tv_message_q
+        self.led_message_q = led_message_q
         self.click_q = click_q
         self.fm = FlowMeter('metric', ["keg 1 beer"])
         print("Starting on gpio " + str(gpio_pin))
@@ -224,6 +226,21 @@ class read_keg_data(multiprocessing.Process):
             # The Pour is active
             if (self.fm.flow > 0.0):
                 keg_data_dict['PourStatus'] = "Pour Active"
+
+                # Send wake signals to TV and LED when pour starts
+                if self.tv_message_q:
+                    try:
+                        self.tv_message_q.put({'PowerOn': True})
+                        logging.debug(f"Sent PowerOn signal to TV from keg {self.keg_dict['keg_id']}")
+                    except Full:
+                        logging.warning("TV message queue full when sending PowerOn")
+
+                if self.led_message_q:
+                    try:
+                        self.led_message_q.put({'PowerActive': True})
+                        logging.debug(f"Sent PowerActive signal to LED from keg {self.keg_dict['keg_id']}")
+                    except Full:
+                        logging.warning("LED message queue full when sending PowerActive")
 
             percent_left = int((((float(self.keg_dict['kegsizel']) - tally) + 0.001) / float(self.keg_dict['kegsizel']) ) * 100 )
             

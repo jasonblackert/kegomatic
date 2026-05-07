@@ -149,28 +149,31 @@ def main():
     print("Starting Hardware Workers...")
     print("="*60)
 
+    # Create TV and LED queues first so they can be passed to keg workers
+    tv_message_m2t = multiprocessing.Queue(maxsize=10)
+    tv_message_t2m = multiprocessing.Queue(maxsize=10)
+    led_data = multiprocessing.Queue(maxsize=5)
+
     keg_data1 = multiprocessing.Queue(maxsize=5)
     keg_message1 = multiprocessing.Queue(maxsize=10)
-    keg_thread1 = read_keg_data(keg_data1, keg_message1, keg_dict1, 17)
+    keg_thread1 = read_keg_data(keg_data1, keg_message1, keg_dict1, 17, tv_message_m2t, led_data)
 
     keg_data2 = multiprocessing.Queue(maxsize=5)
     keg_message2 = multiprocessing.Queue(maxsize=10)
-    keg_thread2 = read_keg_data(keg_data2, keg_message2, keg_dict2, 27)
+    keg_thread2 = read_keg_data(keg_data2, keg_message2, keg_dict2, 27, tv_message_m2t, led_data)
 
     keg_data3 = multiprocessing.Queue(maxsize=5)
     keg_message3 = multiprocessing.Queue(maxsize=10)
-    keg_thread3 = read_keg_data(keg_data3, keg_message3, keg_dict3, 22)
+    keg_thread3 = read_keg_data(keg_data3, keg_message3, keg_dict3, 22, tv_message_m2t, led_data)
 
     keg_data4 = multiprocessing.Queue(maxsize=5)
     keg_message4 = multiprocessing.Queue(maxsize=10)
-    keg_thread4 = read_keg_data(keg_data4, keg_message4, keg_dict4, 23)
+    keg_thread4 = read_keg_data(keg_data4, keg_message4, keg_dict4, 23, tv_message_m2t, led_data)
 
     keg_data5 = multiprocessing.Queue(maxsize=5)
     keg_message5 = multiprocessing.Queue(maxsize=10)
-    keg_thread5 = read_keg_data(keg_data5, keg_message5, keg_dict5, 24)
+    keg_thread5 = read_keg_data(keg_data5, keg_message5, keg_dict5, 24, tv_message_m2t, led_data)
 
-    tv_message_m2t = multiprocessing.Queue(maxsize=10)
-    tv_message_t2m = multiprocessing.Queue(maxsize=10)
     tv_thread = manage_tv_power(tv_message_m2t, tv_message_t2m, tv_dict)
 
     pb_data = multiprocessing.Queue(maxsize=5)
@@ -179,7 +182,6 @@ def main():
     temp_sensor_data = multiprocessing.Queue(maxsize=5)
     temp_sensor_thread = monitor_temp_sensor(temp_sensor_data)
 
-    led_data = multiprocessing.Queue(maxsize=5)
     led_thread = led_control(led_data, 18)
 
     # Collect all queues for Flask app
