@@ -145,10 +145,29 @@ function updateKegDisplay(kegId, data) {
         setElementText(`pour-cost-${id}`, value);
     }
 
-    // Update flow rate
+    // Update flow rate and apply glow effect
     if (data.InstFlowRateOzS !== undefined) {
         const value = data.InstFlowRateOzS === 0 ? '0' : data.InstFlowRateOzS.toFixed(1);
         setElementText(`flow-rate-${id}`, value);
+
+        // Add/remove glow effect on flow rate
+        const flowRateElement = document.getElementById(`flow-rate-${id}`);
+        if (flowRateElement) {
+            if (data.InstFlowRateOzS > 0) {
+                flowRateElement.classList.add('flow-active');
+                // Update vertical bar height (max ~3 oz/s = 100%)
+                const percent = Math.min(100, (data.InstFlowRateOzS / 3) * 100);
+                flowRateElement.style.setProperty('--flow-height', `${percent}%`);
+            } else {
+                flowRateElement.classList.remove('flow-active');
+                flowRateElement.style.setProperty('--flow-height', '0%');
+            }
+        }
+
+        // Apply column highlight and progress bar animation
+        const isPouring = data.InstFlowRateOzS > 0;
+        updateColumnHighlight(id, isPouring);
+        updateProgressBarAnimation(id, isPouring);
     }
 
     // Update keg fill percent
@@ -178,6 +197,35 @@ function animateNumber(elementId, newValue, decimals = 0) {
     element.textContent = newValue.toFixed(decimals);
 }
 
+// Update column highlight during pour
+function updateColumnHighlight(kegId, isPouring) {
+    // Get all cells in this keg's column
+    const cells = [
+        document.getElementById(`logo-${kegId}`)?.parentElement,
+        document.getElementById(`name-${kegId}`),
+        document.getElementById(`brewery-${kegId}`),
+        document.getElementById(`type-${kegId}`),
+        document.getElementById(`abv-${kegId}`),
+        document.getElementById(`ibu-${kegId}`),
+        document.getElementById(`progress-${kegId}`)?.closest('.progress-cell'),
+        document.getElementById(`remaining-${kegId}`),
+        document.getElementById(`pour-amt-${kegId}`),
+        document.getElementById(`pour-cost-${kegId}`),
+        document.getElementById(`flow-rate-${kegId}`),
+        document.getElementById(`status-${kegId}`)
+    ];
+
+    cells.forEach(cell => {
+        if (cell) {
+            if (isPouring) {
+                cell.classList.add('pouring');
+            } else {
+                cell.classList.remove('pouring');
+            }
+        }
+    });
+}
+
 // Update progress bar
 function updateProgressBar(kegId, percent) {
     const progressFill = document.getElementById(`progress-${kegId}`);
@@ -190,6 +238,18 @@ function updateProgressBar(kegId, percent) {
     if (percentText) {
         const roundedPercent = Math.round(percent);
         percentText.textContent = roundedPercent === 0 ? 'n/a' : `${roundedPercent}%`;
+    }
+}
+
+// Update progress bar animation during pour
+function updateProgressBarAnimation(kegId, isPouring) {
+    const progressFill = document.getElementById(`progress-${kegId}`);
+    if (progressFill) {
+        if (isPouring) {
+            progressFill.classList.add('flowing');
+        } else {
+            progressFill.classList.remove('flowing');
+        }
     }
 }
 
@@ -324,10 +384,15 @@ function addLogMessage(message) {
     if (!logContent) return;
 
     const messageDiv = document.createElement('div');
-    messageDiv.className = 'log-message';
+    messageDiv.className = 'log-message highlight';
     messageDiv.textContent = message;
 
     logContent.appendChild(messageDiv);
+
+    // Remove highlight after 3 seconds
+    setTimeout(() => {
+        messageDiv.classList.remove('highlight');
+    }, 3000);
 
     // Auto-scroll to bottom
     logContent.scrollTop = logContent.scrollHeight;

@@ -98,6 +98,20 @@ body {
     color: var(--text-primary);
     font-family: 'Inter', Arial, sans-serif;
     line-height: 1.5;
+    transition: background-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+/* Column highlight during pour */
+.data-cell.pouring,
+.progress-cell.pouring,
+.status-cell.pouring-column {
+    background-color: rgba(215, 128, 26, 0.15);
+    box-shadow: inset 0 0 20px rgba(215, 128, 26, 0.3);
+}
+
+.logo-row td.pouring {
+    background-color: rgba(215, 128, 26, 0.15);
+    box-shadow: inset 0 0 20px rgba(215, 128, 26, 0.3);
 }
 
 /* Numeric display cells - use 7-segment font for specific numeric rows */
@@ -112,6 +126,83 @@ body {
     text-align: right;
     padding-right: 2rem;
     line-height: 1.5;
+}
+
+/* Flow rate cells with vertical meter bar */
+#flow-rate-1, #flow-rate-2, #flow-rate-3, #flow-rate-4, #flow-rate-5 {
+    position: relative;
+}
+
+#flow-rate-1::after, #flow-rate-2::after, #flow-rate-3::after,
+#flow-rate-4::after, #flow-rate-5::after {
+    content: '';
+    position: absolute;
+    right: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 6px;
+    height: var(--flow-height, 0%);
+    background: #d7801a;
+    opacity: 0;
+    transition: height 0.2s ease-out, opacity 0.2s ease-out;
+}
+
+#flow-rate-1.flow-active::after, #flow-rate-2.flow-active::after,
+#flow-rate-3.flow-active::after, #flow-rate-4.flow-active::after,
+#flow-rate-5.flow-active::after {
+    opacity: 1;
+}
+
+/* Flow rate cells with meter */
+.flow-rate-container {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    padding-right: 2rem;
+}
+
+.flow-rate-number {
+    font-family: 'DSEG7 Modern Mini', monospace;
+    font-weight: normal;
+    letter-spacing: 0.15em;
+    font-size: 1.8rem;
+    text-align: right;
+    line-height: 1.5;
+    min-width: 60px;
+}
+
+.flow-rate-meter {
+    width: 80px;
+    height: 20px;
+    background: var(--lcd-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 2px;
+    position: relative;
+    overflow: hidden;
+}
+
+.flow-rate-meter-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(to right, #00ff00, #ffa500, #ff0000);
+    transition: width 0.2s ease-out;
+}
+
+/* Flow rate glow during pour */
+.flow-rate-number.flow-active {
+    color: #ffa500;
+    text-shadow: 0 0 10px rgba(255, 165, 0, 0.8), 0 0 20px rgba(255, 165, 0, 0.4);
+    animation: pulse-glow 1s ease-in-out infinite;
+}
+
+@keyframes pulse-glow {
+    0%, 100% {
+        text-shadow: 0 0 10px rgba(255, 165, 0, 0.8), 0 0 20px rgba(255, 165, 0, 0.4);
+    }
+    50% {
+        text-shadow: 0 0 20px rgba(255, 165, 0, 1), 0 0 30px rgba(255, 165, 0, 0.6);
+    }
 }
 
 /* Progress Bar Cells */
@@ -139,6 +230,66 @@ body {
     height: 100%;
     width: 0%;
     transition: width 0.3s ease-out;
+    position: relative;
+}
+
+/* Animated flow during pour */
+.progress-fill.flowing::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: repeating-linear-gradient(
+        to right,
+        #d7801a 0px,
+        #d7801a 8px,
+        transparent 8px,
+        transparent 10px
+    );
+    animation: flow-shimmer 2s linear infinite;
+}
+
+@keyframes flow-shimmer {
+    0% {
+        opacity: 1;
+        filter: brightness(1);
+    }
+    50% {
+        opacity: 0.7;
+        filter: brightness(1.3);
+    }
+    100% {
+        opacity: 1;
+        filter: brightness(1);
+    }
+}
+
+/* Flowing animation - moves the gradient */
+.progress-fill.flowing {
+    background: repeating-linear-gradient(
+        to right,
+        #d7801a 0px,
+        #d7801a 8px,
+        #b36515 8px,
+        #b36515 10px,
+        #d7801a 10px,
+        #d7801a 18px,
+        transparent 18px,
+        transparent 20px
+    );
+    background-size: 20px 100%;
+    animation: flow-right 1s linear infinite;
+}
+
+@keyframes flow-right {
+    0% {
+        background-position: 0 0;
+    }
+    100% {
+        background-position: 20px 0;
+    }
 }
 
 .progress-text {
@@ -245,6 +396,28 @@ body {
 
 .log-message {
     margin-bottom: 0.25rem;
+    animation: log-fade-in 0.5s ease-out;
+}
+
+.log-message.highlight {
+    background-color: rgba(0, 255, 0, 0.2);
+    transition: background-color 0.5s ease-out;
+}
+
+@keyframes log-fade-in {
+    0% {
+        opacity: 0;
+        background-color: rgba(0, 255, 0, 0.3);
+        transform: translateX(-10px);
+    }
+    50% {
+        background-color: rgba(0, 255, 0, 0.2);
+    }
+    100% {
+        opacity: 1;
+        background-color: transparent;
+        transform: translateX(0);
+    }
 }
 
 /* Stats Panel (Right 50%) */
