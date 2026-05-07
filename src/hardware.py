@@ -312,9 +312,14 @@ class monitor_temp_sensor(multiprocessing.Process):
                 out_decode = out.decode('utf-8')
                 lines = out_decode.split('\n')
 
+                # Wait for valid temperature reading
                 while lines[0].strip()[-3:] != 'YES':
                     time.sleep(0.2)
-                    lines = read_temp_raw()
+                    # Re-read the device file
+                    catdata = subprocess.Popen(['cat', device_file], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                    out, err = catdata.communicate()
+                    out_decode = out.decode('utf-8')
+                    lines = out_decode.split('\n')
 
                 equals_pos = lines[1].find('t=')
                 if equals_pos != -1:
