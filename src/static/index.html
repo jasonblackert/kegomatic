@@ -210,6 +210,138 @@
         </div>
     </div>
 
+    <!-- Settings Button -->
+    <button id="settings-btn" style="position: fixed; bottom: 0.75rem; right: 0.75rem; width: 40px; height: 40px; min-width: 40px; max-width: 40px; min-height: 40px; max-height: 40px; padding: 0; background: #2a2a2a; color: #b0b0b0; border: 1px solid #404040; border-radius: 50%; font-size: 1.25rem; cursor: pointer; z-index: 1000; display: flex; align-items: center; justify-content: center; opacity: 0.7; transition: opacity 0.2s, transform 0.2s;">⚙️</button>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="settings-modal">
+        <div class="settings-content">
+            <div class="settings-header">
+                <h2>Kegomatic Settings</h2>
+                <button class="close-button" id="close-settings">✕</button>
+            </div>
+            <div class="settings-body">
+                <div class="keg-section" data-keg="1">
+                    <div class="keg-section-header">
+                        <h3>Tap 1: <span id="settings-name-1">Loading...</span></h3>
+                    </div>
+                    <div class="keg-section-buttons">
+                        <button class="btn-edit" data-keg="1">Edit Current</button>
+                        <button class="btn-replace" data-keg="1">Replace Keg</button>
+                    </div>
+                </div>
+                <div class="keg-section" data-keg="2">
+                    <div class="keg-section-header">
+                        <h3>Tap 2: <span id="settings-name-2">Loading...</span></h3>
+                    </div>
+                    <div class="keg-section-buttons">
+                        <button class="btn-edit" data-keg="2">Edit Current</button>
+                        <button class="btn-replace" data-keg="2">Replace Keg</button>
+                    </div>
+                </div>
+                <div class="keg-section" data-keg="3">
+                    <div class="keg-section-header">
+                        <h3>Tap 3: <span id="settings-name-3">Loading...</span></h3>
+                    </div>
+                    <div class="keg-section-buttons">
+                        <button class="btn-edit" data-keg="3">Edit Current</button>
+                        <button class="btn-replace" data-keg="3">Replace Keg</button>
+                    </div>
+                </div>
+                <div class="keg-section" data-keg="4">
+                    <div class="keg-section-header">
+                        <h3>Tap 4: <span id="settings-name-4">Loading...</span></h3>
+                    </div>
+                    <div class="keg-section-buttons">
+                        <button class="btn-edit" data-keg="4">Edit Current</button>
+                        <button class="btn-replace" data-keg="4">Replace Keg</button>
+                    </div>
+                </div>
+                <div class="keg-section" data-keg="5">
+                    <div class="keg-section-header">
+                        <h3>Tap 5: <span id="settings-name-5">Loading...</span></h3>
+                    </div>
+                    <div class="keg-section-buttons">
+                        <button class="btn-edit" data-keg="5">Edit Current</button>
+                        <button class="btn-replace" data-keg="5">Replace Keg</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Keg Edit/Replace Modal -->
+    <div id="keg-form-modal" class="keg-form-modal">
+        <div class="keg-form-content">
+            <div class="keg-form-header">
+                <h2 id="keg-form-title">Edit Keg</h2>
+                <button class="close-button" id="close-keg-form">✕</button>
+            </div>
+            <div class="keg-form-body">
+                <form id="keg-form">
+                    <input type="hidden" id="form-keg-number">
+                    <input type="hidden" id="form-mode">
+
+                    <div class="form-group">
+                        <label>Beer Name</label>
+                        <input type="text" id="form-name" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Brewery</label>
+                        <input type="text" id="form-brewery" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Type</label>
+                        <input type="text" id="form-type" required>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>ABV</label>
+                            <input type="text" id="form-abv">
+                        </div>
+
+                        <div class="form-group">
+                            <label>IBU</label>
+                            <input type="text" id="form-ibu">
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Cost of Keg ($)</label>
+                            <input type="number" id="form-cost" step="0.01" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Keg Size (L)</label>
+                            <input type="number" id="form-size" step="0.1" required>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Purchase Date (MMDDYYYY)</label>
+                        <input type="text" id="form-date" pattern="[0-9]{8}" maxlength="8" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Logo</label>
+                        <select id="form-logo" required>
+                            <option value="">Loading logos...</option>
+                        </select>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="button" class="btn-cancel" id="cancel-keg-form">Cancel</button>
+                        <button type="submit" class="btn-save">Save</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <!-- Scripts -->
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
     <script src="/static/app.js"></script>

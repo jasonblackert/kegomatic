@@ -7,7 +7,8 @@ import os
 import time
 import threading
 import logging
-from flask import Flask, render_template, jsonify, send_from_directory
+import configparser
+from flask import Flask, render_template, jsonify, send_from_directory, request
 from flask_socketio import SocketIO, emit
 from queue import Empty
 
@@ -161,6 +162,209 @@ def serve_logo(filename):
     """Serve logo images"""
     logos_path = os.path.join(SCRIPT_DIR, 'logos')
     return send_from_directory(logos_path, filename)
+
+@app.route('/api/logos')
+def get_logos():
+    """Return list of available logo files"""
+    logos_path = os.path.join(SCRIPT_DIR, 'logos')
+    try:
+        if os.path.exists(logos_path):
+            logos = [f for f in os.listdir(logos_path) if f.endswith(('.png', '.jpg', '.jpeg', '.gif'))]
+            return jsonify({'logos': sorted(logos)})
+        else:
+            return jsonify({'logos': []})
+    except Exception as e:
+        logging.error(f"Error listing logos: {e}")
+        return jsonify({'logos': [], 'error': str(e)})
+
+@app.route('/api/keg/edit', methods=['POST'])
+def edit_keg():
+    """Edit existing keg configuration"""
+    try:
+        data = request.get_json()
+        keg_number = data.get('keg_number')
+        keg_data = data.get('keg_data')
+
+        if not keg_number or not keg_data:
+            return jsonify({'success': False, 'error': 'Missing keg_number or keg_data'})
+
+        config_path = os.path.join(SCRIPT_DIR, 'config', 'kegs.config')
+
+        # Read config
+        config = configparser.ConfigParser()
+        config.read(config_path)
+
+        # Get current keg ID for this tap
+        active_section = 'Active'
+        keg_key = f'keg{keg_number}'
+
+        if not config.has_option(active_section, keg_key):
+            return jsonify({'success': False, 'error': f'Tap {keg_number} not found in config'})
+
+        current_keg_id = config.get(active_section, keg_key)
+
+        # Update the existing keg section
+        if not config.has_section(current_keg_id):
+            return jsonify({'success': False, 'error': f'Keg section {current_keg_id} not found'})
+
+        # Get old keg size to check if it changed
+        old_keg_size = float(config.get(current_keg_id, 'KegSizeL', fallback=20))
+        new_keg_size = float(keg_data.get('kegsizel', 20))
+
+        config.set(current_keg_id, 'Name', keg_data.get('name', ''))
+        config.set(current_keg_id, 'Brewery', keg_data.get('brewery', ''))
+        config.set(current_keg_id, 'Type', keg_data.get('type', ''))
+        config.set(current_keg_id, 'ABV', str(keg_data.get('abv', '')))
+        config.set(current_keg_id, 'IBU', str(keg_data.get('ibu', '')))
+        config.set(current_keg_id, 'CostOfKeg', str(keg_data.get('costofkeg', 0)))
+        config.set(current_keg_id, 'KegSizeL', str(new_keg_size))
+        config.set(current_keg_id, 'PurchaseDate', keg_data.get('purchasedate', ''))
+        config.set(current_keg_id, 'Logo', keg_data.get('logo', ''))
+
+        # Write config back to file
+        with open(config_path, 'w') as configfile:
+            config.write(configfile)
+
+        # Update global keg configs
+        _keg_configs[str(keg_number)] = dict(config.items(current_keg_id))
+        _keg_configs[str(keg_number)]['keg_id'] = current_keg_id
+
+        # If keg size changed, recalculate beer remaining and fill percentage
+        recalculated_data = None
+        if old_keg_size != new_keg_size:
+            # Get current beer remaining from the keg data queue (last known state)
+            # We'll need to calculate: pouredOz = (oldMax - oldRemaining)
+            # then: newRemaining = newMax - pouredOz
+
+            # Constants
+            OZ_PER_LITER = 33.814
+
+            old_max_oz = old_keg_size * OZ_PER_LITER
+            new_max_oz = new_keg_size * OZ_PER_LITER
+
+            # Try to get current beer remaining from queue or use max as fallback
+            # For now, we'll send a message to the hardware thread to do the recalculation
+            # since it has the authoritative state
+
+            message = {
+                'type': 'recalculate_size',
+                'old_size_l': old_keg_size,
+                'new_size_l': new_keg_size,
+                'old_max_oz': old_max_oz,
+                'new_max_oz': new_max_oz
+            }
+
+            if f'keg_message{keg_number}' in _queues:
+                try:
+                    _queues[f'keg_message{keg_number}'].put(message)
+                    logging.info(f"Keg {keg_number} size changed: {old_keg_size}L -> {new_keg_size}L. Recalculating beer remaining.")
+                except Exception as e:
+                    logging.error(f"Error sending keg size change message: {e}")
+
+        logging.info(f"Edited keg {keg_number} (ID: {current_keg_id})")
+
+        return jsonify({'success': True, 'keg_id': current_keg_id})
+
+    except Exception as e:
+        logging.error(f"Error editing keg: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/keg/replace', methods=['POST'])
+def replace_keg():
+    """Replace keg with new configuration (creates new keg ID)"""
+    try:
+        data = request.get_json()
+        keg_number = data.get('keg_number')
+        keg_data = data.get('keg_data')
+
+        if not keg_number or not keg_data:
+            return jsonify({'success': False, 'error': 'Missing keg_number or keg_data'})
+
+        config_path = os.path.join(SCRIPT_DIR, 'config', 'kegs.config')
+
+        # Read config
+        config = configparser.ConfigParser()
+        config.read(config_path)
+
+        # Get current keg ID for this tap
+        active_section = 'Active'
+        keg_key = f'keg{keg_number}'
+
+        if not config.has_option(active_section, keg_key):
+            return jsonify({'success': False, 'error': f'Tap {keg_number} not found in config'})
+
+        current_keg_id = config.get(active_section, keg_key)
+
+        # Generate new keg ID (increment last letter)
+        new_keg_id = generate_next_keg_id(current_keg_id, config)
+
+        # Create new keg section
+        config.add_section(new_keg_id)
+        config.set(new_keg_id, 'Name', keg_data.get('name', ''))
+        config.set(new_keg_id, 'Brewery', keg_data.get('brewery', ''))
+        config.set(new_keg_id, 'Type', keg_data.get('type', ''))
+        config.set(new_keg_id, 'ABV', str(keg_data.get('abv', '')))
+        config.set(new_keg_id, 'IBU', str(keg_data.get('ibu', '')))
+        config.set(new_keg_id, 'CostOfKeg', str(keg_data.get('costofkeg', 0)))
+        config.set(new_keg_id, 'KegSizeL', str(keg_data.get('kegsizel', 0)))
+        config.set(new_keg_id, 'PurchaseDate', keg_data.get('purchasedate', ''))
+        config.set(new_keg_id, 'Logo', keg_data.get('logo', ''))
+
+        # Update Active section
+        config.set(active_section, keg_key, new_keg_id)
+
+        # Write config back to file
+        with open(config_path, 'w') as configfile:
+            config.write(configfile)
+
+        # Update global keg configs
+        _keg_configs[str(keg_number)] = dict(config.items(new_keg_id))
+        _keg_configs[str(keg_number)]['keg_id'] = new_keg_id
+
+        logging.info(f"Replaced keg {keg_number}: {current_keg_id} -> {new_keg_id}")
+
+        return jsonify({'success': True, 'old_keg_id': current_keg_id, 'new_keg_id': new_keg_id})
+
+    except Exception as e:
+        logging.error(f"Error replacing keg: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+def generate_next_keg_id(current_id, config):
+    """Generate next keg ID by incrementing letters"""
+    if len(current_id) == 2:
+        first, second = current_id[0], current_id[1]
+
+        # Try incrementing second letter first
+        if second != 'Z':
+            next_second = chr(ord(second) + 1)
+            new_id = first + next_second
+        else:
+            # Second is Z, increment first and reset second to A
+            if first != 'Z':
+                next_first = chr(ord(first) + 1)
+                new_id = next_first + 'A'
+            else:
+                # Both are Z, wrap to AA (or use AAA for 3 letters)
+                new_id = 'AA'
+
+        # Check if ID already exists, if so keep incrementing
+        while config.has_section(new_id):
+            if len(new_id) == 2:
+                first, second = new_id[0], new_id[1]
+                if second != 'Z':
+                    new_id = first + chr(ord(second) + 1)
+                elif first != 'Z':
+                    new_id = chr(ord(first) + 1) + 'A'
+                else:
+                    new_id = 'AAA'  # Extend to 3 letters
+            else:
+                # If we ever get 3+ letters, just increment last
+                new_id = new_id[:-1] + chr(ord(new_id[-1]) + 1)
+
+        return new_id
+
+    # Fallback for unexpected format
+    return 'ZZ'
 
 
 # SocketIO Events

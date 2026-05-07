@@ -19,6 +19,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initializeUI();
     setupSocketListeners();
     fetchInitialConfig();
+    setupSettingsMenu();
 });
 
 // Initialize UI elements
@@ -422,5 +423,190 @@ function setElementText(elementId, text) {
     const element = document.getElementById(elementId);
     if (element) {
         element.textContent = text;
+    }
+}
+
+// Settings Menu Functions
+function setupSettingsMenu() {
+    const settingsBtn = document.getElementById('settings-btn');
+    const settingsModal = document.getElementById('settings-modal');
+    const closeSettings = document.getElementById('close-settings');
+    const kegFormModal = document.getElementById('keg-form-modal');
+    const closeKegForm = document.getElementById('close-keg-form');
+    const cancelKegForm = document.getElementById('cancel-keg-form');
+    const kegForm = document.getElementById('keg-form');
+
+    // Hover effect for settings button
+    settingsBtn.addEventListener('mouseenter', () => {
+        settingsBtn.style.opacity = '1';
+        settingsBtn.style.transform = 'rotate(90deg) scale(1.1)';
+    });
+
+    settingsBtn.addEventListener('mouseleave', () => {
+        settingsBtn.style.opacity = '0.7';
+        settingsBtn.style.transform = 'rotate(0deg) scale(1)';
+    });
+
+    // Open settings modal
+    settingsBtn.addEventListener('click', () => {
+        updateSettingsModal();
+        settingsModal.classList.add('visible');
+    });
+
+    // Close settings modal
+    closeSettings.addEventListener('click', () => {
+        settingsModal.classList.remove('visible');
+    });
+
+    // Close keg form modal
+    closeKegForm.addEventListener('click', () => {
+        kegFormModal.classList.remove('visible');
+    });
+
+    cancelKegForm.addEventListener('click', () => {
+        kegFormModal.classList.remove('visible');
+    });
+
+    // Edit/Replace button handlers
+    document.querySelectorAll('.btn-edit').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const kegNum = e.target.dataset.keg;
+            openKegForm(kegNum, 'edit');
+        });
+    });
+
+    document.querySelectorAll('.btn-replace').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const kegNum = e.target.dataset.keg;
+            openKegForm(kegNum, 'replace');
+        });
+    });
+
+    // Form submit
+    kegForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        await saveKegForm();
+    });
+
+    // Load logos on first open
+    loadLogos();
+}
+
+function updateSettingsModal() {
+    // Update beer names in settings modal
+    for (let i = 1; i <= 5; i++) {
+        const kegData = config.kegs[i.toString()];
+        if (kegData) {
+            setElementText(`settings-name-${i}`, kegData.name || 'Unknown');
+        }
+    }
+}
+
+async function loadLogos() {
+    try {
+        const response = await fetch('/api/logos');
+        const data = await response.json();
+        const logoSelect = document.getElementById('form-logo');
+
+        logoSelect.innerHTML = '<option value="">Select a logo...</option>';
+        data.logos.forEach(logo => {
+            const option = document.createElement('option');
+            option.value = logo;
+            option.textContent = logo;
+            logoSelect.appendChild(option);
+        });
+    } catch (error) {
+        console.error('Error loading logos:', error);
+    }
+}
+
+function openKegForm(kegNum, mode) {
+    const kegData = config.kegs[kegNum.toString()];
+    if (!kegData) return;
+
+    const formTitle = document.getElementById('keg-form-title');
+    formTitle.textContent = mode === 'edit' ? `Edit Keg - Tap ${kegNum}` : `Replace Keg - Tap ${kegNum}`;
+
+    // Set hidden fields
+    document.getElementById('form-keg-number').value = kegNum;
+    document.getElementById('form-mode').value = mode;
+
+    // Pre-fill form with current keg data
+    document.getElementById('form-name').value = kegData.name || '';
+    document.getElementById('form-brewery').value = kegData.brewery || '';
+    document.getElementById('form-type').value = kegData.type || '';
+    document.getElementById('form-abv').value = kegData.abv || '';
+    document.getElementById('form-ibu').value = kegData.ibu || '';
+    document.getElementById('form-cost').value = kegData.costofkeg || '';
+    document.getElementById('form-size').value = kegData.kegsizel || '';
+    document.getElementById('form-logo').value = kegData.logo || '';
+
+    // For replace mode, set date to today. For edit mode, use existing date
+    if (mode === 'replace') {
+        const today = new Date();
+        const month = String(today.getMonth() + 1).padStart(2, '0');
+        const day = String(today.getDate()).padStart(2, '0');
+        const year = today.getFullYear();
+        document.getElementById('form-date').value = `${month}${day}${year}`;
+    } else {
+        document.getElementById('form-date').value = kegData.purchasedate || '';
+    }
+
+    // Show form modal
+    document.getElementById('keg-form-modal').classList.add('visible');
+}
+
+async function saveKegForm() {
+    const kegNum = document.getElementById('form-keg-number').value;
+    const mode = document.getElementById('form-mode').value;
+
+    const kegData = {
+        name: document.getElementById('form-name').value,
+        brewery: document.getElementById('form-brewery').value,
+        type: document.getElementById('form-type').value,
+        abv: document.getElementById('form-abv').value,
+        ibu: document.getElementById('form-ibu').value,
+        costofkeg: parseFloat(document.getElementById('form-cost').value),
+        kegsizel: parseFloat(document.getElementById('form-size').value),
+        purchasedate: document.getElementById('form-date').value,
+        logo: document.getElementById('form-logo').value
+    };
+
+    try {
+        const endpoint = mode === 'edit' ? '/api/keg/edit' : '/api/keg/replace';
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                keg_number: parseInt(kegNum),
+                keg_data: kegData
+            })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            console.log('Keg saved successfully:', result);
+
+            // Close form modal
+            document.getElementById('keg-form-modal').classList.remove('visible');
+
+            // Reload config
+            await fetchInitialConfig();
+
+            // Update settings modal
+            updateSettingsModal();
+
+            // Show success message in log
+            addLogMessage(`✓ Keg ${kegNum} ${mode === 'edit' ? 'updated' : 'replaced'}: ${kegData.name}`);
+        } else {
+            console.error('Error saving keg:', result.error);
+            alert(`Error saving keg: ${result.error}`);
+        }
+    } catch (error) {
+        console.error('Error saving keg:', error);
+        alert(`Error saving keg: ${error.message}`);
     }
 }

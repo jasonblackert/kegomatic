@@ -483,6 +483,316 @@ body {
     letter-spacing: 0.1em;
 }
 
+/* Settings Button */
+.settings-button {
+    position: fixed !important;
+    bottom: 1rem !important;
+    right: 1rem !important;
+    width: 60px !important;
+    height: 60px !important;
+    padding: 0 !important;
+    background: var(--border-color) !important;
+    color: var(--text-primary) !important;
+    border: 2px solid var(--text-secondary) !important;
+    border-radius: 50% !important;
+    font-size: 2rem !important;
+    cursor: pointer !important;
+    z-index: 1000 !important;
+    font-family: 'Inter', Arial, sans-serif !important;
+    transition: all 0.2s !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-width: 60px !important;
+    max-width: 60px !important;
+    min-height: 60px !important;
+    max-height: 60px !important;
+}
+
+.settings-button:hover {
+    background: #505050 !important;
+    transform: scale(1.1) rotate(90deg) !important;
+}
+
+.settings-button:active {
+    transform: scale(0.95) rotate(90deg) !important;
+}
+
+/* Settings Modal */
+.settings-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.8);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+}
+
+.settings-modal.visible {
+    display: flex;
+}
+
+.settings-content {
+    background: var(--bg-table);
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    width: 95%;
+    max-width: 1400px;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.settings-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem;
+    border-bottom: 2px solid var(--border-color);
+}
+
+.settings-header h2 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.close-button {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 1.5rem;
+    cursor: pointer;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.2s;
+}
+
+.close-button:hover {
+    color: var(--text-primary);
+}
+
+.settings-body {
+    padding: 1.5rem;
+    display: flex;
+    gap: 1rem;
+}
+
+.keg-section {
+    background: var(--bg-dark);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 1rem;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.keg-section:last-child {
+    margin-bottom: 0;
+}
+
+.keg-section-header {
+    flex: 1;
+    margin-bottom: 1rem;
+}
+
+.keg-section-header h3 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+    text-align: center;
+}
+
+.keg-section-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.btn-edit,
+.btn-replace {
+    width: 100%;
+    padding: 0.75rem 0.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: 'Inter', Arial, sans-serif;
+}
+
+.btn-edit {
+    background: var(--border-color);
+    color: var(--text-primary);
+}
+
+.btn-edit:hover {
+    background: #505050;
+}
+
+.btn-replace {
+    background: var(--lcd-green);
+    color: var(--bg-dark);
+}
+
+.btn-replace:hover {
+    background: #00cc00;
+}
+
+/* Keg Form Modal */
+.keg-form-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.8);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 3000;
+}
+
+.keg-form-modal.visible {
+    display: flex;
+}
+
+.keg-form-content {
+    background: var(--bg-table);
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    width: 90%;
+    max-width: 600px;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.keg-form-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem;
+    border-bottom: 2px solid var(--border-color);
+}
+
+.keg-form-header h2 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.keg-form-body {
+    padding: 1.5rem;
+}
+
+.form-group {
+    margin-bottom: 1rem;
+}
+
+.form-group label {
+    display: block;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-bottom: 0.5rem;
+    text-transform: uppercase;
+}
+
+.form-group input,
+.form-group select {
+    width: 100%;
+    padding: 0.75rem;
+    background: var(--bg-dark) !important;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    color: var(--text-primary) !important;
+    font-size: 1rem;
+    font-family: 'Inter', Arial, sans-serif;
+    height: 48px;
+    line-height: 1.5;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+}
+
+.form-group select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23ffffff' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    background-size: 12px;
+    padding-right: 2.5rem;
+}
+
+.form-group select option {
+    background: var(--bg-dark) !important;
+    color: var(--text-primary) !important;
+    padding: 0.5rem;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+    outline: none;
+    border-color: var(--lcd-green);
+}
+
+.form-row {
+    display: flex;
+    gap: 1rem;
+}
+
+.form-row .form-group {
+    flex: 1;
+}
+
+.form-actions {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1.5rem;
+}
+
+.btn-cancel,
+.btn-save {
+    flex: 1;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: 'Inter', Arial, sans-serif;
+}
+
+.btn-cancel {
+    background: var(--bg-dark);
+    color: var(--text-primary);
+}
+
+.btn-cancel:hover {
+    background: var(--border-color);
+}
+
+.btn-save {
+    background: var(--lcd-green);
+    color: var(--bg-dark);
+}
+
+.btn-save:hover {
+    background: #00cc00;
+}
+
 /* Pour Popup */
 .pour-popup {
     position: fixed;
