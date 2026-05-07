@@ -61,7 +61,7 @@ body {
 
 /* Logo Row */
 .logo-row td {
-    height: 150px;
+    height: 180px;
     padding: 0.5rem;
 }
 
@@ -70,14 +70,14 @@ body {
 }
 
 .venmo-logo {
-    max-width: 150px;
-    max-height: 140px;
+    max-width: 180px;
+    max-height: 168px;
     object-fit: contain;
 }
 
 .beer-logo {
     max-width: 100%;
-    max-height: 140px;
+    max-height: 168px;
     object-fit: contain;
 }
 
@@ -97,6 +97,7 @@ body {
     font-size: 1.35rem;
     color: var(--text-primary);
     font-family: 'Inter', Arial, sans-serif;
+    line-height: 1.5;
 }
 
 /* Numeric display cells - use 7-segment font for specific numeric rows */
@@ -108,6 +109,9 @@ body {
     font-weight: normal;
     letter-spacing: 0.15em;
     font-size: 1.8rem;
+    text-align: right;
+    padding-right: 2rem;
+    line-height: 1.5;
 }
 
 /* Progress Bar Cells */
@@ -313,7 +317,7 @@ body {
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(0, 0, 0, 0.95);
+    background: transparent;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -330,17 +334,17 @@ body {
 
 .popup-content {
     background: var(--bg-table);
-    border: 3px solid var(--lcd-green);
-    border-radius: 12px;
-    padding: 2rem;
-    max-width: 600px;
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    padding: 1.5rem 2rem;
+    max-width: 800px;
     width: 90%;
     animation: popup-appear 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 @keyframes popup-appear {
     from {
-        transform: scale(0.8);
+        transform: scale(0.9);
         opacity: 0;
     }
     to {
@@ -351,55 +355,34 @@ body {
 
 .popup-header {
     display: flex;
-    justify-content: space-between;
+    justify-content: center;
     align-items: center;
-    margin-bottom: 1.5rem;
-    padding-bottom: 1rem;
-    border-bottom: 2px solid var(--border-color);
+    margin-bottom: 1rem;
 }
 
 .popup-header h2 {
-    font-size: 1.75rem;
+    font-size: 1.5rem;
     font-weight: 700;
-    color: var(--lcd-green);
-    margin: 0;
-}
-
-.popup-close {
-    background: none;
-    border: none;
-    color: var(--text-secondary);
-    font-size: 2rem;
-    cursor: pointer;
-    padding: 0;
-    width: 40px;
-    height: 40px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 4px;
-    transition: all 0.15s;
-}
-
-.popup-close:hover {
-    background: rgba(255, 255, 255, 0.1);
     color: var(--text-primary);
+    margin: 0;
 }
 
 .popup-body {
     display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
+    flex-direction: row;
+    gap: 2rem;
     align-items: center;
+    justify-content: center;
 }
 
 .popup-venmo-logo {
-    width: 200px;
-    height: 200px;
+    width: 280px;
+    height: 280px;
     display: flex;
     align-items: center;
     justify-content: center;
-    animation: logo-move-in 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+    animation: logo-move-in 0.65s cubic-bezier(0.34, 1.3, 0.64, 1);
+    flex-shrink: 0;
 }
 
 @keyframes logo-move-in {
@@ -436,33 +419,37 @@ body {
 }
 
 .popup-stats {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 1rem;
-    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    flex: 1;
 }
 
 .popup-stat {
     background: var(--lcd-bg);
     border: 2px inset #333;
-    border-radius: 8px;
-    padding: 1rem;
+    border-radius: 4px;
+    padding: 1.5rem 2rem;
     text-align: center;
+    min-width: 200px;
 }
 
 .popup-stat-label {
-    font-size: 0.7rem;
+    font-size: 0.8rem;
     font-weight: 600;
     text-transform: uppercase;
     color: var(--text-secondary);
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.75rem;
+    white-space: nowrap;
 }
 
 .popup-stat-value {
-    font-size: 1.75rem;
+    font-size: 2rem;
     font-weight: 700;
-    color: var(--lcd-green);
-    font-family: 'Courier New', monospace;
+    color: var(--text-primary);
+    font-family: 'DSEG7 Modern Mini', monospace;
+    letter-spacing: 0.15em;
+    white-space: nowrap;
 }
 
 .popup-footer {

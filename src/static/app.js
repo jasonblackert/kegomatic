@@ -124,12 +124,14 @@ function updateKegDisplay(kegId, data) {
 
     // Update beer remaining (text only)
     if (data.BeerRemainingOz !== undefined) {
-        setElementText(`remaining-${id}`, data.BeerRemainingOz.toFixed(1));
+        const value = data.BeerRemainingOz === 0 ? '0' : data.BeerRemainingOz.toFixed(1);
+        setElementText(`remaining-${id}`, value);
     }
 
     // Update pour amount (text only)
     if (data.PourAmtOz !== undefined) {
-        setElementText(`pour-amt-${id}`, data.PourAmtOz.toFixed(1));
+        const value = data.PourAmtOz === 0 ? '0' : data.PourAmtOz.toFixed(1);
+        setElementText(`pour-amt-${id}`, value);
 
         // Show popup if pour just finished (amount > 0 and status changing to Ready)
         if (data.PourAmtOz > 0.1 && data.PourStatus === 'Ready') {
@@ -139,12 +141,14 @@ function updateKegDisplay(kegId, data) {
 
     // Update pour cost
     if (data.PourCost !== undefined) {
-        setElementText(`pour-cost-${id}`, data.PourCost.toFixed(2));
+        const value = data.PourCost === 0 ? '$0' : `$${data.PourCost.toFixed(2)}`;
+        setElementText(`pour-cost-${id}`, value);
     }
 
     // Update flow rate
     if (data.InstFlowRateOzS !== undefined) {
-        setElementText(`flow-rate-${id}`, data.InstFlowRateOzS.toFixed(1));
+        const value = data.InstFlowRateOzS === 0 ? '0' : data.InstFlowRateOzS.toFixed(1);
+        setElementText(`flow-rate-${id}`, value);
     }
 
     // Update keg fill percent
@@ -223,15 +227,23 @@ function showPourPopup(kegId, pourData) {
         clearTimeout(pourPopupTimeout);
     }
 
+    // Remove existing popup if it exists
+    const existingPopup = document.getElementById('pour-popup');
+    if (existingPopup) {
+        existingPopup.remove();
+    }
+
     // Get keg config
     const kegConfig = config.kegs[kegId] || {};
 
-    // Create popup if it doesn't exist
-    let popup = document.getElementById('pour-popup');
-    if (!popup) {
-        popup = createPourPopup();
-        document.body.appendChild(popup);
-    }
+    // Create new popup
+    const popup = createPourPopup();
+    document.body.appendChild(popup);
+
+    // Add click listener to close popup
+    popup.addEventListener('click', () => {
+        hidePourPopup();
+    });
 
     // Get Venmo logo
     const venmoLogo = document.querySelector('.venmo-logo');
@@ -246,14 +258,13 @@ function showPourPopup(kegId, pourData) {
     }
 
     // Populate popup data
-    popup.querySelector('.popup-beer-name').textContent = kegConfig.name || 'Beer';
-    popup.querySelector('.popup-brewery-name').textContent = kegConfig.brewery || '';
     popup.querySelector('.popup-pour-amount').textContent = pourData.PourAmtOz.toFixed(1);
     popup.querySelector('.popup-pour-cost').textContent = pourData.PourCost.toFixed(2);
-    popup.querySelector('.popup-flow-rate').textContent = pourData.InstFlowRateOzS.toFixed(1);
 
-    // Show popup
-    popup.classList.add('visible');
+    // Show popup after a brief delay to trigger animation
+    setTimeout(() => {
+        popup.classList.add('visible');
+    }, 10);
 
     // Hide popup after 10 seconds
     pourPopupTimeout = setTimeout(() => {
@@ -266,15 +277,16 @@ function hidePourPopup() {
     const popup = document.getElementById('pour-popup');
     const venmoLogo = document.querySelector('.venmo-logo');
 
-    if (popup) {
+    if (popup && popup.classList.contains('visible')) {
+        // Remove visible class to trigger fade out
         popup.classList.remove('visible');
 
-        // Return Venmo logo to header after animation
+        // Return Venmo logo to header after fade out
         setTimeout(() => {
             if (venmoLogo) {
                 venmoLogo.style.opacity = '1';
             }
-        }, 500);
+        }, 300);
     }
 }
 
@@ -287,30 +299,18 @@ function createPourPopup() {
         <div class="popup-content">
             <div class="popup-header">
                 <h2>Pour Complete! 🍺</h2>
-                <button class="popup-close" onclick="hidePourPopup()">×</button>
             </div>
             <div class="popup-body">
                 <div class="popup-venmo-logo"></div>
-                <div class="popup-beer-info">
-                    <div class="popup-beer-name">Beer Name</div>
-                    <div class="popup-brewery-name">Brewery</div>
-                </div>
                 <div class="popup-stats">
                     <div class="popup-stat">
-                        <div class="popup-stat-label">Amount Poured</div>
-                        <div class="popup-stat-value"><span class="popup-pour-amount">0.0</span> fl oz</div>
+                        <div class="popup-stat-label">Amount Poured (fl. oz.)</div>
+                        <div class="popup-stat-value"><span class="popup-pour-amount">0.0</span></div>
                     </div>
                     <div class="popup-stat">
                         <div class="popup-stat-label">Cost</div>
                         <div class="popup-stat-value">$<span class="popup-pour-cost">0.00</span></div>
                     </div>
-                    <div class="popup-stat">
-                        <div class="popup-stat-label">Flow Rate</div>
-                        <div class="popup-stat-value"><span class="popup-flow-rate">0.0</span> oz/s</div>
-                    </div>
-                </div>
-                <div class="popup-footer">
-                    Scan QR code to pay with Venmo
                 </div>
             </div>
         </div>
