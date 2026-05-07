@@ -488,6 +488,11 @@ function setupSettingsMenu() {
         await saveKegForm();
     });
 
+    // TV settings save button
+    document.getElementById('save-tv-settings').addEventListener('click', async () => {
+        await saveTVSettings();
+    });
+
     // Load logos on first open
     loadLogos();
 }
@@ -500,6 +505,9 @@ function updateSettingsModal() {
             setElementText(`settings-name-${i}`, kegData.name || 'Unknown');
         }
     }
+
+    // Load TV settings
+    loadTVSettings();
 }
 
 async function loadLogos() {
@@ -608,5 +616,52 @@ async function saveKegForm() {
     } catch (error) {
         console.error('Error saving keg:', error);
         alert(`Error saving keg: ${error.message}`);
+    }
+}
+
+async function loadTVSettings() {
+    try {
+        const response = await fetch('/api/tv/settings');
+        const data = await response.json();
+
+        if (data.success) {
+            document.getElementById('tv-serial-port').value = data.settings.serialport || '';
+            document.getElementById('tv-baud-rate').value = data.settings.baudrate || '';
+            document.getElementById('tv-sleep-time').value = data.settings.sleeptimesec || '';
+        }
+    } catch (error) {
+        console.error('Error loading TV settings:', error);
+    }
+}
+
+async function saveTVSettings() {
+    const settings = {
+        serialport: document.getElementById('tv-serial-port').value,
+        baudrate: parseInt(document.getElementById('tv-baud-rate').value),
+        sleeptimesec: parseInt(document.getElementById('tv-sleep-time').value)
+    };
+
+    try {
+        const response = await fetch('/api/tv/settings', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(settings)
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            console.log('TV settings saved successfully');
+            addLogMessage(`✓ TV settings updated: ${settings.serialport} (restart required)`);
+            alert('TV settings saved successfully!\n\nNote: Software restart required for changes to take effect.');
+        } else {
+            console.error('Error saving TV settings:', result.error);
+            alert(`Error saving TV settings: ${result.error}`);
+        }
+    } catch (error) {
+        console.error('Error saving TV settings:', error);
+        alert(`Error saving TV settings: ${error.message}`);
     }
 }

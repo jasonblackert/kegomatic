@@ -367,6 +367,71 @@ def generate_next_keg_id(current_id, config):
     return 'ZZ'
 
 
+@app.route('/api/tv/settings', methods=['GET'])
+def get_tv_settings():
+    """Return TV settings from config"""
+    try:
+        config_path = os.path.join(SCRIPT_DIR, 'config', 'kegs.config')
+
+        # Read config
+        config = configparser.ConfigParser()
+        config.read(config_path)
+
+        if not config.has_section('TV'):
+            return jsonify({'success': False, 'error': 'TV section not found in config'})
+
+        tv_settings = {
+            'serialport': config.get('TV', 'serialport', fallback='/dev/ttyUSB0'),
+            'baudrate': config.get('TV', 'baudrate', fallback='9600'),
+            'sleeptimesec': config.get('TV', 'sleeptimesec', fallback='360')
+        }
+
+        return jsonify({'success': True, 'settings': tv_settings})
+
+    except Exception as e:
+        logging.error(f"Error getting TV settings: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@app.route('/api/tv/settings', methods=['POST'])
+def save_tv_settings():
+    """Save TV settings to config"""
+    try:
+        data = request.get_json()
+        serialport = data.get('serialport')
+        baudrate = data.get('baudrate')
+        sleeptimesec = data.get('sleeptimesec')
+
+        if not serialport or not baudrate or not sleeptimesec:
+            return jsonify({'success': False, 'error': 'Missing required fields'})
+
+        config_path = os.path.join(SCRIPT_DIR, 'config', 'kegs.config')
+
+        # Read config
+        config = configparser.ConfigParser()
+        config.read(config_path)
+
+        if not config.has_section('TV'):
+            config.add_section('TV')
+
+        # Update TV settings
+        config.set('TV', 'serialport', str(serialport))
+        config.set('TV', 'baudrate', str(baudrate))
+        config.set('TV', 'sleeptimesec', str(sleeptimesec))
+
+        # Write config back to file
+        with open(config_path, 'w') as configfile:
+            config.write(configfile)
+
+        logging.info(f"TV settings updated: {serialport}, {baudrate}, {sleeptimesec}")
+
+        return jsonify({'success': True})
+
+    except Exception as e:
+        logging.error(f"Error saving TV settings: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+
 # SocketIO Events
 
 @socketio.on('connect')
