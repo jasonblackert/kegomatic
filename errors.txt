@@ -1,0 +1,65 @@
+==========================================
+ Kegomatic Web UI
+==========================================
+
+Logging level: WARNING (use --info or --debug for more detail)
+============================================================
+Kegomatic Web UI Starting...
+============================================================
+Python version: 3.13.5 (main, Jun 25 2025, 18:55:22) [GCC 14.2.0]
+Script directory: /home/kegomatic/git/kegomatic/src
+
+✓ Loaded config from /home/kegomatic/git/kegomatic/src/config/kegs.config
+✓ Active Kegs: EG AC AC AC AC
+
+============================================================
+Starting Hardware Workers...
+============================================================
+Starting on gpio 17
+Starting on gpio 27
+Starting on gpio 22
+Starting on gpio 23
+Starting on gpio 24
+Button thread starting on gpio 25
+Temp Sensor thread starting...
+LED Control thread starting on gpio 18
+
+Starting hardware worker processes...
+============================================================
+✓ Started keg_thread1 (PID: 4600)
+✓ Started keg_thread2 (PID: 4601)
+✓ Started keg_thread3 (PID: 4603)
+✓ Started keg_thread4 (PID: 4605)
+✓ Started keg_thread5 (PID: 4607)
+✓ Started tv_thread (PID: 4608)
+✓ Started pb_thread (PID: 4609)
+✓ Started led_thread (PID: 4610)
+✓ Started temp_sensor_thread (PID: 4613)
+
+============================================================
+HARDWARE INITIALIZATION SUMMARY
+============================================================
+Successfully started: 9/9 workers
+
+Started workers:
+  ✓ keg_thread1
+  ✓ keg_thread2
+  ✓ keg_thread3
+  ✓ keg_thread4
+  ✓ keg_thread5
+  ✓ tv_thread
+  ✓ pb_thread
+  ✓ led_thread
+  ✓ temp_sensor_thread
+
+Note: Check logs above for detailed hardware initialization status.
+Some hardware failures are normal in development environments.
+============================================================
+
+============================================================
+Starting Flask Server...
+============================================================
+✓ DataGatherer thread started
+ * Serving Flask app 'web_server'
+✓ Flask server starting on port 5000
+ * Debug mode: off
