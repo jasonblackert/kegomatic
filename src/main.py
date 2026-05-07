@@ -69,13 +69,14 @@ def main():
     log_format = '%(asctime)s | %(levelname)-8s | %(processName)-20s | %(funcName)-25s | %(message)s'
     if args.debug:
         logging.basicConfig(level=logging.DEBUG, format=log_format)
-        print("Logging level: DEBUG (verbose)")
+        print("Logging level: DEBUG (very verbose)")
     elif args.info:
         logging.basicConfig(level=logging.INFO, format=log_format)
-        print("Logging level: INFO")
+        print("Logging level: INFO (verbose)")
     else:
         logging.basicConfig(level=logging.WARNING, format=log_format)
-        print("Logging level: WARNING (use --info or --debug for more detail)")
+        print("Logging level: WARNING (errors and warnings only)")
+        print("Use -v or --verbose flag with start_keg.sh for detailed logs")
 
     print("="*60)
     print("Kegomatic Web UI Starting...")

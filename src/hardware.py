@@ -452,7 +452,7 @@ class led_control(multiprocessing.Process):
                     logging.debug("LED Message from master to thread: %s", str(m2t_dict))
 
                 except Empty:
-                    logging.info("Empty Q when getting data from the led_message_q queue")
+                    logging.debug("Empty Q when getting data from the led_message_q queue")
                     m2t_dict = dict()
 
                 if "PowerActive" in m2t_dict:
@@ -591,7 +591,7 @@ class manage_tv_power(multiprocessing.Process):
                 logging.debug("TV Message from master to thread: %s", str(m2t_dict))
 
             except Empty:
-                logging.info("Empty Q when getting data from the tv_message_m2t queue")
+                logging.debug("Empty Q when getting data from the tv_message_m2t queue")
                 m2t_dict = dict()
 
             # Power on from someone pouring beer

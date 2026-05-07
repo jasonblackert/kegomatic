@@ -30,11 +30,28 @@ echo ""
 echo "Logging all output to: $LOG_FILE"
 echo ""
 
-# Check if user provided --debug or --info flag, otherwise default to --info
-ARGS="$@"
-if [[ ! "$ARGS" =~ "--debug" ]] && [[ ! "$ARGS" =~ "--info" ]]; then
-    echo "Adding --info flag for detailed logging (use --debug for even more detail)"
-    ARGS="--info $ARGS"
+# Parse command line arguments
+VERBOSE=false
+ARGS=""
+
+for arg in "$@"; do
+    if [ "$arg" = "-v" ] || [ "$arg" = "--verbose" ]; then
+        VERBOSE=true
+    else
+        ARGS="$ARGS $arg"
+    fi
+done
+
+# Set logging level based on verbose flag
+if [ "$VERBOSE" = true ]; then
+    echo "Verbose mode enabled (--info logging)"
+    # Check if user already specified --debug, otherwise add --info
+    if [[ ! "$ARGS" =~ "--debug" ]]; then
+        ARGS="--info $ARGS"
+    fi
+else
+    echo "Normal mode (errors and warnings only, use -v for verbose)"
+    # Don't add any log level flag - will default to WARNING
 fi
 
 # Run Python app with all output (stdout and stderr) piped to both terminal and log file

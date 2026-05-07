@@ -120,6 +120,42 @@ function setupSocketListeners() {
     // Log message
     socket.on('log_message', (data) => {
         addLogMessage(data.message);
+
+        // Check if this is a pour completion message and trigger popup
+        if (data.message.includes('Someone just poured') && data.keg_id) {
+            console.log(`Pour completion detected for keg ${data.keg_id}: ${data.message}`);
+
+            // Parse pour amount and cost from message
+            // Format: "MM-DD-YYYY - HH:MM:SS: Someone just poured X.XX oz. of BeerName from the kegomatic! The cost was $X.XX"
+            const ozMatch = data.message.match(/poured\s+([\d.]+)\s+oz\./);
+            const costMatch = data.message.match(/\$\s*([\d.]+)/);
+            const beerNameMatch = data.message.match(/oz\.\s+of\s+(.+?)\s+from the kegomatic/);
+
+            if (ozMatch && costMatch) {
+                const pourOz = parseFloat(ozMatch[1]);
+                const pourCost = parseFloat(costMatch[1]);
+                const beerName = beerNameMatch ? beerNameMatch[1] : '';
+
+                console.log(`Parsed pour data: ${pourOz} oz, $${pourCost}, beer: ${beerName}`);
+
+                // Get current keg data for this keg
+                const kegConfig = config.kegs[data.keg_id];
+
+                // Create pour data object for popup
+                const pourData = {
+                    PourAmtOz: pourOz,
+                    PourCost: pourCost,
+                    BeerName: beerName || (kegConfig ? kegConfig.Name : 'Unknown'),
+                    Brewery: kegConfig ? kegConfig.Brewery : '',
+                    Logo: kegConfig ? kegConfig.Logo : ''
+                };
+
+                console.log(`✓ Triggering pour popup for keg ${data.keg_id}`);
+                showPourPopup(data.keg_id, pourData);
+            } else {
+                console.log(`✗ Could not parse pour amount/cost from message: ${data.message}`);
+            }
+        }
     });
 
     // Time update
@@ -143,11 +179,6 @@ function updateKegDisplay(kegId, data) {
     if (data.PourAmtOz !== undefined) {
         const value = data.PourAmtOz === 0 ? '0' : data.PourAmtOz.toFixed(1);
         setElementText(`pour-amt-${id}`, value);
-
-        // Show popup if pour just finished (amount > 0 and status changing to Ready)
-        if (data.PourAmtOz > 0.1 && data.PourStatus === 'Ready') {
-            showPourPopup(kegId, data);
-        }
     }
 
     // Update pour cost
