@@ -303,8 +303,19 @@ class led_control(multiprocessing.Process):
 
     def run(self):
         logging.info("Starting led_control thread...")
-        # pwm = GPIO.PWM(self.gpio_pin, 100) # Init PWM on self.gpio_pin to 100 Hz frequency
-        pwm = PWMLED(self.gpio_pin)
+
+        # Try to initialize PWM LED, catch and log errors gracefully
+        try:
+            pwm = PWMLED(self.gpio_pin)
+            logging.info(f"✓ LED control initialized on GPIO {self.gpio_pin}")
+        except Exception as e:
+            logging.error(f"✗ Failed to initialize LED PWM on GPIO {self.gpio_pin}: {e}")
+            logging.warning("LED control will be disabled (this is normal if not running on Raspberry Pi)")
+            # Keep thread alive but do nothing
+            while not self.exit.is_set():
+                time.sleep(1)
+            return
+
         duty_cycle = 50
         pwm.value = duty_cycle / 100 # Value translated to between 0.0 and 1.0
         sleep_state = True
@@ -386,18 +397,27 @@ class manage_tv_power(multiprocessing.Process):
         par      = serial.PARITY_NONE  # parity
         sb       = 1                   # stop bits
         to       = 0
-        logging.info("Opening serial port with the following settings: %s,%s", serial_port_name, str(baud))
+        logging.info(f"Opening serial port: {serial_port_name} at {baud} baud")
         try:
             ser = serial.Serial(serial_port_name, baud, parity = par, stopbits = sb, bytesize = databits,timeout = to)
             time.sleep(0.2)
             c = ser.read(100)
             ser.flushOutput()
             ser.flushInput()
+            logging.info(f"✓ Serial port {serial_port_name} opened successfully")
         except serial.SerialException as e:
-            #logging.critical("Unable to open Serial Port: %s", e)
+            logging.error(f"✗ Unable to open serial port {serial_port_name}: {e}")
+            logging.warning("TV power control will be disabled (this is normal if TV is not connected)")
             ser = None
-            self.exit.set()
-            print("Closed early, serial port not initialized")
+            # Keep thread alive but do nothing
+            while not self.exit.is_set():
+                time.sleep(1)
+            return
+        except Exception as e:
+            logging.error(f"✗ Unexpected error opening serial port: {e}")
+            ser = None
+            while not self.exit.is_set():
+                time.sleep(1)
             return
 
         if ser is not None:
@@ -477,73 +497,100 @@ class manage_tv_power(multiprocessing.Process):
         self.exit.set()
 
 def _send_tv_cmd(ser, cmd, cmd_retry_count, ser_read_retry_count):
-    logging.info("Sending TV Command: ->%s<-", str(cmd))
-    i = int(cmd_retry_count)
-    while (i > 0):
-        logging.debug("Sending TV Command: ->%s<-", str(cmd))
-        _send_serial(ser, str(cmd))
-        logging.debug("Waiting for a response from the TV... %s", str(cmd))
-        time.sleep(.1)
-        res = _read_serial(ser, int(ser_read_retry_count))
-        logging.info("TV Returned ->%s<-", str(res))
-        if (res == "OK"):
-            logging.info("The TV has accepted the command")
-            return True
-        elif (res == "ERR"):
-            logging.error("The TV has rejected the command")
-        else:
-            logging.error("The TV is not responding to serial commands. Will retry %s more time(s)", str(i))
+    """Send a command to the TV via serial and wait for response"""
+    if ser is None:
+        logging.warning("Serial port is None, skipping TV command: %s", cmd)
+        return False
 
-        time.sleep(.1)
-        i = i - 1
-    logging.error("Unable to command the TV, it is not responding")
-    return False
+    try:
+        logging.info("Sending TV Command: ->%s<-", str(cmd))
+        i = int(cmd_retry_count)
+        while (i > 0):
+            logging.debug("Sending TV Command: ->%s<-", str(cmd))
+            _send_serial(ser, str(cmd))
+            logging.debug("Waiting for a response from the TV... %s", str(cmd))
+            time.sleep(.1)
+            res = _read_serial(ser, int(ser_read_retry_count))
+            logging.info("TV Returned ->%s<-", str(res))
+            if (res == "OK"):
+                logging.info("The TV has accepted the command")
+                return True
+            elif (res == "ERR"):
+                logging.error("The TV has rejected the command")
+            else:
+                logging.error("The TV is not responding to serial commands. Will retry %s more time(s)", str(i))
+
+            time.sleep(.1)
+            i = i - 1
+        logging.error("Unable to command the TV, it is not responding")
+        return False
+
+    except Exception as e:
+        logging.error(f"Exception while sending TV command '{cmd}': {e}")
+        return False
 
 ###############################################################################
 # Serial Interface
 ###############################################################################
 
 def _send_serial(ser, cmd_string):
+    """Send a string command to serial port, encoding to bytes"""
     if ser is None:
+        logging.warning("Serial port is None, skipping send")
         return
 
-    ser.flushOutput()
-    ser.flushInput()
-    for c in cmd_string:
-        ser.write(c)
-    ser.write("\r")
+    try:
+        ser.flushOutput()
+        ser.flushInput()
+
+        # Encode string to bytes for serial transmission
+        for c in cmd_string:
+            ser.write(c.encode('ascii'))
+        ser.write(b"\r")
+
+        logging.debug(f"Sent serial command: {cmd_string}")
+    except Exception as e:
+        logging.error(f"Error sending serial command '{cmd_string}': {e}")
 
 def _read_serial(ser, retry_count):
-    #Retry the read up to retry_count times
-    #time.sleep(0.01)
-    repeat_count = 0
-    cmd_ok = False
+    """Read response from serial port, decoding bytes to string"""
     if ser is None:
-        return
+        logging.error("Serial port is None, cannot read")
+        return None
+
+    try:
+        repeat_count = 0
+        cmd_ok = False
         buffer = ""
-        while 1:
+
+        while True:
             c = ser.read(1)
             if len(c) == 0:
-               if(repeat_count == retry_count):
-                   break
-               repeat_count = repeat_count + 1
-               continue
+                if repeat_count == retry_count:
+                    break
+                repeat_count = repeat_count + 1
+                continue
+
+            # Decode bytes to string
+            c = c.decode('ascii', errors='ignore')
 
             if c == '\r':
-               cmd_ok = True
-               break;
+                cmd_ok = True
+                break
 
-            if buffer != "" or c != ">": #if something is in buffer, add everything
-               buffer = buffer + c
+            if buffer != "" or c != ">":  # if something is in buffer, add everything
+                buffer = buffer + c
 
-        if(buffer == ""):
-           logging.warning("No data received from read command after %s retries", retry_count)
-           return None
-        logging.debug("Retry count %s", repeat_count)
+        if buffer == "":
+            logging.warning("No data received from read command after %s retries", retry_count)
+            return None
+
+        logging.debug("Retry count %s, received: %s", repeat_count, buffer)
         return buffer
-    else:
-        logging.error("NO ser.port!")
-    return None
+
+    except Exception as e:
+        logging.error(f"Error reading from serial port: {e}")
+        return None
 
 
 def is_empty(any_structure):
