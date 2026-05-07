@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kegomatic</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Main Table (75% height) -->
+    <div class="main-table">
+        <table>
+            <!-- Logo Row -->
+            <tr class="logo-row">
+                <td class="qr-cell">
+                    <img src="/logos/Jason_Blackert_Venmo.png" alt="Venmo QR" class="venmo-logo">
+                </td>
+                <td><img src="" alt="Logo" id="logo-1" class="beer-logo"></td>
+                <td><img src="" alt="Logo" id="logo-2" class="beer-logo"></td>
+                <td><img src="" alt="Logo" id="logo-3" class="beer-logo"></td>
+                <td><img src="" alt="Logo" id="logo-4" class="beer-logo"></td>
+                <td><img src="" alt="Logo" id="logo-5" class="beer-logo"></td>
+            </tr>
+
+            <!-- Beer Name -->
+            <tr>
+                <td class="row-label">Beer Name</td>
+                <td class="data-cell" id="name-1">Loading...</td>
+                <td class="data-cell" id="name-2">Loading...</td>
+                <td class="data-cell" id="name-3">Loading...</td>
+                <td class="data-cell" id="name-4">Loading...</td>
+                <td class="data-cell" id="name-5">Loading...</td>
+            </tr>
+
+            <!-- Brewery -->
+            <tr>
+                <td class="row-label">Brewery</td>
+                <td class="data-cell" id="brewery-1">---</td>
+                <td class="data-cell" id="brewery-2">---</td>
+                <td class="data-cell" id="brewery-3">---</td>
+                <td class="data-cell" id="brewery-4">---</td>
+                <td class="data-cell" id="brewery-5">---</td>
+            </tr>
+
+            <!-- Beer Type -->
+            <tr>
+                <td class="row-label">Beer Type</td>
+                <td class="data-cell" id="type-1">---</td>
+                <td class="data-cell" id="type-2">---</td>
+                <td class="data-cell" id="type-3">---</td>
+                <td class="data-cell" id="type-4">---</td>
+                <td class="data-cell" id="type-5">---</td>
+            </tr>
+
+            <!-- ABV -->
+            <tr>
+                <td class="row-label">ABV</td>
+                <td class="data-cell" id="abv-1">n/a</td>
+                <td class="data-cell" id="abv-2">n/a</td>
+                <td class="data-cell" id="abv-3">n/a</td>
+                <td class="data-cell" id="abv-4">n/a</td>
+                <td class="data-cell" id="abv-5">n/a</td>
+            </tr>
+
+            <!-- IBU -->
+            <tr>
+                <td class="row-label">IBU</td>
+                <td class="data-cell" id="ibu-1">--</td>
+                <td class="data-cell" id="ibu-2">--</td>
+                <td class="data-cell" id="ibu-3">--</td>
+                <td class="data-cell" id="ibu-4">--</td>
+                <td class="data-cell" id="ibu-5">--</td>
+            </tr>
+
+            <!-- Keg Fill Level (Progress Bar) -->
+            <tr>
+                <td class="row-label">Keg Fill Level</td>
+                <td class="progress-cell">
+                    <div class="progress-container">
+                        <div class="progress-fill" id="progress-1"></div>
+                        <div class="progress-text" id="percent-text-1">0%</div>
+                    </div>
+                </td>
+                <td class="progress-cell">
+                    <div class="progress-container">
+                        <div class="progress-fill" id="progress-2"></div>
+                        <div class="progress-text" id="percent-text-2">0%</div>
+                    </div>
+                </td>
+                <td class="progress-cell">
+                    <div class="progress-container">
+                        <div class="progress-fill" id="progress-3"></div>
+                        <div class="progress-text" id="percent-text-3">0%</div>
+                    </div>
+                </td>
+                <td class="progress-cell">
+                    <div class="progress-container">
+                        <div class="progress-fill" id="progress-4"></div>
+                        <div class="progress-text" id="percent-text-4">0%</div>
+                    </div>
+                </td>
+                <td class="progress-cell">
+                    <div class="progress-container">
+                        <div class="progress-fill" id="progress-5"></div>
+                        <div class="progress-text" id="percent-text-5">0%</div>
+                    </div>
+                </td>
+            </tr>
+
+            <!-- Beer Remaining -->
+            <tr>
+                <td class="row-label">Beer Remaining (fl. oz.)</td>
+                <td class="data-cell" id="remaining-1">0.0</td>
+                <td class="data-cell" id="remaining-2">0.0</td>
+                <td class="data-cell" id="remaining-3">0.0</td>
+                <td class="data-cell" id="remaining-4">0.0</td>
+                <td class="data-cell" id="remaining-5">0.0</td>
+            </tr>
+
+            <!-- This Pour -->
+            <tr>
+                <td class="row-label">This Pour (fl. oz.)</td>
+                <td class="data-cell" id="pour-amt-1">0.0</td>
+                <td class="data-cell" id="pour-amt-2">0.0</td>
+                <td class="data-cell" id="pour-amt-3">0.0</td>
+                <td class="data-cell" id="pour-amt-4">0.0</td>
+                <td class="data-cell" id="pour-amt-5">0.0</td>
+            </tr>
+
+            <!-- Cost of Pour -->
+            <tr>
+                <td class="row-label">Cost of Pour ($)</td>
+                <td class="data-cell">$<span id="pour-cost-1">0.00</span></td>
+                <td class="data-cell">$<span id="pour-cost-2">0.00</span></td>
+                <td class="data-cell">$<span id="pour-cost-3">0.00</span></td>
+                <td class="data-cell">$<span id="pour-cost-4">0.00</span></td>
+                <td class="data-cell">$<span id="pour-cost-5">0.00</span></td>
+            </tr>
+
+            <!-- Inst. Flow Rate -->
+            <tr>
+                <td class="row-label">Inst. Flow Rate (fl. oz/s)</td>
+                <td class="data-cell" id="flow-rate-1">0.0</td>
+                <td class="data-cell" id="flow-rate-2">0.0</td>
+                <td class="data-cell" id="flow-rate-3">0.0</td>
+                <td class="data-cell" id="flow-rate-4">0.0</td>
+                <td class="data-cell" id="flow-rate-5">0.0</td>
+            </tr>
+
+            <!-- Status -->
+            <tr>
+                <td class="row-label">Status</td>
+                <td class="status-cell" id="status-1"><span class="status-dot"></span> Ready</td>
+                <td class="status-cell" id="status-2"><span class="status-dot"></span> Ready</td>
+                <td class="status-cell" id="status-3"><span class="status-dot"></span> Ready</td>
+                <td class="status-cell" id="status-4"><span class="status-dot"></span> Ready</td>
+                <td class="status-cell" id="status-5"><span class="status-dot"></span> Ready</td>
+            </tr>
+        </table>
+    </div>
+
+    <!-- Bottom Section (25% height) -->
+    <div class="bottom-section">
+        <!-- Left: Activity Log -->
+        <div class="log-panel">
+            <div class="log-content" id="log-messages"></div>
+        </div>
+
+        <!-- Right: Stats -->
+        <div class="stats-panel">
+            <div class="stat-box">
+                <div class="stat-content">
+                    <span class="stat-label">Time</span>
+                    <span class="stat-separator">|</span>
+                    <span class="stat-value" id="current-time">--:--:--</span>
+                </div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-content">
+                    <span class="stat-label">Date</span>
+                    <span class="stat-separator">|</span>
+                    <span class="stat-value" id="current-date">--/--/----</span>
+                </div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-content">
+                    <span class="stat-label">Pi CPU Temp (°C)</span>
+                    <span class="stat-separator">|</span>
+                    <span class="stat-value" id="cpu-temp">0</span>
+                </div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-content">
+                    <span class="stat-label">Kegerator Temp (°F)</span>
+                    <span class="stat-separator">|</span>
+                    <span class="stat-value" id="keg-temp">0</span>
+                </div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-content">
+                    <span class="stat-label">TV Sleep Timer</span>
+                    <span class="stat-separator">|</span>
+                    <span class="stat-value" id="tv-sleep">0</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script src="/static/app.js"></script>
+</body>
+</html>
