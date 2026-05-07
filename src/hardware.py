@@ -85,44 +85,92 @@ class read_keg_data(multiprocessing.Process):
             self.pour_amt += 20
             print(self.pour_amt)
         try:
+            logging.debug(f"Writing pour to database: keg_id={keg_id}, amount={pour_amt:.3f}L")
             db = mysql.connector.connect(host=os.environ['DB_HOST'], user=os.environ['DB_USER'], password=os.environ['DB_PASSWORD'], database=os.environ['DB_NAME'])
             curs = db.cursor()
             curs.execute (''' INSERT INTO pours values (CURRENT_DATE(), CURRENT_TIME(), %s, %s) ''', (keg_id, pour_amt))
             db.commit()
+            db.close()
+            logging.debug(f"✓ Pour written to database successfully")
+        except KeyError as ke:
+            logging.error(f"✗ Database environment variable not set: {ke}")
+            logging.error("Full traceback:", exc_info=True)
+        except mysql.connector.Error as me:
+            logging.error(f"✗ MySQL error writing pour to database: {me}")
+            logging.error("Full traceback:", exc_info=True)
         except Exception as ue:
-            logging.error(f"Unable to write to the database! {ue}")
-        db.close()
+            logging.error(f"✗ Unable to write to the database: {ue}")
+            logging.error("Full traceback:", exc_info=True)
 
     def read_db_tally(self, keg_id):
         self.keg_id = keg_id
         try:
+            logging.debug(f"Reading database tally for keg_id={keg_id}")
             db = mysql.connector.connect(host=os.environ['DB_HOST'], user=os.environ['DB_USER'], password=os.environ['DB_PASSWORD'], database=os.environ['DB_NAME'])
             curs = db.cursor()
             curs.execute (''' SELECT * FROM pours WHERE kegid = %s ''', (keg_id, ))
             tally = 0.0
             for reading in curs.fetchall():
                 tally = tally + float(reading[3])
+            db.close()
+            logging.debug(f"✓ Database tally for {keg_id}: {tally:.3f}L")
             return tally
-        except Exception as ue:
-            logging.error(f"Unable to read the database! {ue}")
+        except KeyError as ke:
+            logging.error(f"✗ Database environment variable not set: {ke}")
+            logging.error("Full traceback:", exc_info=True)
             return 0.0
-        db.close()
+        except mysql.connector.Error as me:
+            logging.error(f"✗ MySQL error reading tally for {keg_id}: {me}")
+            logging.error("Full traceback:", exc_info=True)
+            return 0.0
+        except Exception as ue:
+            logging.error(f"✗ Unable to read the database for {keg_id}: {ue}")
+            logging.error("Full traceback:", exc_info=True)
+            return 0.0
 
     def run(self):
         oz_per_l = 0.02957352956
-        logging.info("Starting read_keg_data thread...")
+        logging.info("="*60)
+        logging.info(f"Starting read_keg_data thread for keg {self.keg_dict.get('keg_id', 'unknown')} on GPIO {self.gpio_pin}")
+        logging.info("="*60)
+
         msg = time.strftime("%m-%d-%Y - %H:%M:%S") + ": Starting thread for FlowMeter on " + self.keg_dict['keg_id']
         try:
             self.keg_message_q.put(str(msg))
         except Full:
             logging.warning("Queue is full when writing keg message")
 
-        button = Button(self.gpio_pin, pull_up=False, bounce_time=0.020)
-        button.when_pressed = self.doAClick
+        # Initialize GPIO button for flow meter
+        try:
+            logging.info(f"Initializing GPIO Button on pin {self.gpio_pin}...")
+            button = Button(self.gpio_pin, pull_up=False, bounce_time=0.020)
+            button.when_pressed = self.doAClick
+            logging.info(f"✓ GPIO Button initialized successfully on pin {self.gpio_pin}")
+        except Exception as e:
+            logging.error(f"✗ CRITICAL: Failed to initialize GPIO Button on pin {self.gpio_pin}")
+            logging.error(f"Exception type: {type(e).__name__}")
+            logging.error(f"Exception message: {e}")
+            logging.error("Full traceback:", exc_info=True)
+            logging.error(f"Flowmeter for keg {self.keg_dict['keg_id']} will NOT function")
+            # Keep thread alive but non-functional
+            while not self.exit.is_set():
+                time.sleep(1)
+            return
+
         keg_data_dict = dict()
         keg_message = ""
         empty_keg = False
-        tally = self.read_db_tally(self.keg_dict['keg_id'])
+
+        # Read database tally
+        try:
+            logging.info(f"Reading database tally for keg {self.keg_dict['keg_id']}...")
+            tally = self.read_db_tally(self.keg_dict['keg_id'])
+            logging.info(f"✓ Database tally: {tally:.2f}L poured from keg {self.keg_dict['keg_id']}")
+        except Exception as e:
+            logging.error(f"✗ Failed to read database tally for keg {self.keg_dict['keg_id']}")
+            logging.error("Full traceback:", exc_info=True)
+            tally = 0.0
+
         cost_per_l = float(self.keg_dict['costofkeg']) / float(self.keg_dict['kegsizel'])
 
         #Calculate % left to start
@@ -219,37 +267,77 @@ class monitor_temp_sensor(multiprocessing.Process):
         print("Temp Sensor thread starting...")
 
     def run(self):
+        logging.info("="*60)
+        logging.info("Starting temperature sensor monitoring thread")
+        logging.info("="*60)
+
         base_dir = '/sys/bus/w1/devices/'
-        matches = glob.glob(base_dir + '28*')
-        if not matches:
-            logging.warning("NO 1-wire temp sensors found under %s", base_dir)
+        logging.info(f"Searching for DS18B20 temperature sensors in {base_dir}...")
+
+        try:
+            matches = glob.glob(base_dir + '28*')
+            if not matches:
+                logging.warning(f"✗ No 1-wire temp sensors found under {base_dir}")
+                logging.warning("Temperature monitoring will be disabled (this is normal if no DS18B20 sensor is connected)")
+                # Keep thread alive but inactive
+                while not self.exit.is_set():
+                    time.sleep(1)
+                logging.info("Temperature sensor thread exiting")
+                return
+
+            device_folder = matches[0]
+            device_file = device_folder + '/w1_slave'
+            logging.info(f"✓ Found temperature sensor at {device_folder}")
+            logging.info(f"Reading from device file: {device_file}")
+
+        except Exception as e:
+            logging.error(f"✗ Error searching for temperature sensors: {e}")
+            logging.error("Full traceback:", exc_info=True)
+            while not self.exit.is_set():
+                time.sleep(1)
             return
-        device_folder = matches[0]
-        #device_folder = glob.glob(base_dir + '28*')[0]
-        device_file = device_folder + '/w1_slave'
+
         temp_sensor_dict = dict()
 
         while not self.exit.is_set():
-            catdata = subprocess.Popen(['cat',device_file], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            out,err = catdata.communicate()
-            out_decode = out.decode('utf-8')
-            lines = out_decode.split('\n')
-            while lines[0].strip()[-3:] != 'YES':
-                time.sleep(0.2)
-                lines = read_temp_raw()
-            equals_pos = lines[1].find('t=')
-            if equals_pos != -1:
-                temp_string = lines[1][equals_pos+2:]
-                temp_c = float(temp_string) / 1000.0
-                temp_f = temp_c * 9.0 / 5.0 + 32.0
+            try:
+                catdata = subprocess.Popen(['cat',device_file], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                out,err = catdata.communicate()
 
-                temp_sensor_dict['TempF'] = float(temp_f)
-                temp_sensor_dict['TempC'] = float(temp_c)
-                try:
-                    self.temp_sensor_message_q.put(temp_sensor_dict)
-                except Full:
-                    logging.warning("Queue is full when writing to the temp_sensor_message queue.")
+                if err:
+                    logging.error(f"Error reading temperature sensor: {err.decode('utf-8')}")
+                    time.sleep(1)
+                    continue
+
+                out_decode = out.decode('utf-8')
+                lines = out_decode.split('\n')
+
+                while lines[0].strip()[-3:] != 'YES':
+                    time.sleep(0.2)
+                    lines = read_temp_raw()
+
+                equals_pos = lines[1].find('t=')
+                if equals_pos != -1:
+                    temp_string = lines[1][equals_pos+2:]
+                    temp_c = float(temp_string) / 1000.0
+                    temp_f = temp_c * 9.0 / 5.0 + 32.0
+
+                    temp_sensor_dict['TempF'] = float(temp_f)
+                    temp_sensor_dict['TempC'] = float(temp_c)
+
+                    logging.debug(f"Temperature reading: {temp_c:.1f}°C / {temp_f:.1f}°F")
+
+                    try:
+                        self.temp_sensor_message_q.put(temp_sensor_dict)
+                    except Full:
+                        logging.warning("Queue is full when writing to the temp_sensor_message queue.")
+
                 time.sleep(.5)
+
+            except Exception as e:
+                logging.error(f"✗ Error reading temperature sensor data: {e}")
+                logging.error("Full traceback:", exc_info=True)
+                time.sleep(1)
         print("Temp Sensor Thread exit.")
 
     def shutdown(self):
@@ -266,13 +354,32 @@ class monitor_push_button(multiprocessing.Process):
         print("Button thread starting on gpio " + str(gpio_pin))
 
     def run(self):
-        logging.info("Starting monitor_push_button thread...")
+        logging.info("="*60)
+        logging.info(f"Starting pushbutton monitoring thread on GPIO {self.gpio_pin}")
+        logging.info("="*60)
+
         pb_dict = dict()
-        button = Button(self.gpio_pin)
+
+        try:
+            logging.info(f"Initializing GPIO Button on pin {self.gpio_pin}...")
+            button = Button(self.gpio_pin)
+            logging.info(f"✓ Pushbutton initialized successfully on GPIO {self.gpio_pin}")
+        except Exception as e:
+            logging.error(f"✗ CRITICAL: Failed to initialize pushbutton on GPIO {self.gpio_pin}")
+            logging.error(f"Exception type: {type(e).__name__}")
+            logging.error(f"Exception message: {e}")
+            logging.error("Full traceback:", exc_info=True)
+            logging.warning("Pushbutton monitoring will be disabled")
+            # Keep thread alive but inactive
+            while not self.exit.is_set():
+                time.sleep(1)
+            logging.info("Pushbutton thread exiting")
+            return
+
         try:
             while not self.exit.is_set():
                 if button.is_pressed:
-                    print('Button Pressed')
+                    logging.info('✓ Button Pressed - sending wake signal')
                     pb_dict['ButtonPressed'] = True
                     try:
                         self.pb_message_q.put(pb_dict)
@@ -283,7 +390,11 @@ class monitor_push_button(multiprocessing.Process):
                     time.sleep(.1)
         except KeyboardInterrupt as ke:
             logging.warning(f"Keyboard Interrupt received: {ke}")
+        except Exception as e:
+            logging.error(f"✗ Error in pushbutton monitoring loop: {e}")
+            logging.error("Full traceback:", exc_info=True)
         finally:
+            logging.info("Closing pushbutton GPIO")
             button.close()
 
         print("monitor_push_button exit.")
@@ -302,18 +413,25 @@ class led_control(multiprocessing.Process):
         print("LED Control thread starting on gpio " + str(gpio_pin))
 
     def run(self):
-        logging.info("Starting led_control thread...")
+        logging.info("="*60)
+        logging.info(f"Starting LED control thread on GPIO {self.gpio_pin}")
+        logging.info("="*60)
 
         # Try to initialize PWM LED, catch and log errors gracefully
         try:
+            logging.info(f"Attempting to initialize PWMLED on GPIO {self.gpio_pin}...")
             pwm = PWMLED(self.gpio_pin)
-            logging.info(f"✓ LED control initialized on GPIO {self.gpio_pin}")
+            logging.info(f"✓ LED control initialized successfully on GPIO {self.gpio_pin}")
         except Exception as e:
-            logging.error(f"✗ Failed to initialize LED PWM on GPIO {self.gpio_pin}: {e}")
-            logging.warning("LED control will be disabled (this is normal if not running on Raspberry Pi)")
+            logging.error(f"✗ CRITICAL: Failed to initialize LED PWM on GPIO {self.gpio_pin}")
+            logging.error(f"Exception type: {type(e).__name__}")
+            logging.error(f"Exception message: {e}")
+            logging.error("Full traceback:", exc_info=True)
+            logging.warning("LED control will be disabled (this is normal if not running on Raspberry Pi with PWM support)")
             # Keep thread alive but do nothing
             while not self.exit.is_set():
                 time.sleep(1)
+            logging.info("LED control thread exiting")
             return
 
         duty_cycle = 50
@@ -387,7 +505,10 @@ class manage_tv_power(multiprocessing.Process):
         self.tv_dict = tv_dict
 
     def run(self):
-        logging.info("Starting manage_tv_power thread...")
+        logging.info("="*60)
+        logging.info("Starting TV power management thread")
+        logging.info("="*60)
+
         tv_power_on = False
 
         #Setup Serial Port
@@ -397,7 +518,14 @@ class manage_tv_power(multiprocessing.Process):
         par      = serial.PARITY_NONE  # parity
         sb       = 1                   # stop bits
         to       = 0
-        logging.info(f"Opening serial port: {serial_port_name} at {baud} baud")
+        logging.info(f"Attempting to open serial port:")
+        logging.info(f"  Port: {serial_port_name}")
+        logging.info(f"  Baud rate: {baud}")
+        logging.info(f"  Data bits: {databits}")
+        logging.info(f"  Parity: {par}")
+        logging.info(f"  Stop bits: {sb}")
+        logging.info(f"  Timeout: {to}")
+
         try:
             ser = serial.Serial(serial_port_name, baud, parity = par, stopbits = sb, bytesize = databits,timeout = to)
             time.sleep(0.2)
@@ -405,19 +533,31 @@ class manage_tv_power(multiprocessing.Process):
             ser.flushOutput()
             ser.flushInput()
             logging.info(f"✓ Serial port {serial_port_name} opened successfully")
+            if c:
+                logging.debug(f"Initial read from serial port: {c}")
         except serial.SerialException as e:
-            logging.error(f"✗ Unable to open serial port {serial_port_name}: {e}")
+            logging.error(f"✗ CRITICAL: Unable to open serial port {serial_port_name}")
+            logging.error(f"Serial exception: {e}")
+            logging.error("Full traceback:", exc_info=True)
             logging.warning("TV power control will be disabled (this is normal if TV is not connected)")
+            logging.info("Common causes:")
+            logging.info("  - Serial device not connected")
+            logging.info("  - Wrong device path (check /dev/ttyUSB* or /dev/ttyACM*)")
+            logging.info("  - Insufficient permissions (add user to 'dialout' group)")
             ser = None
             # Keep thread alive but do nothing
             while not self.exit.is_set():
                 time.sleep(1)
+            logging.info("TV power thread exiting")
             return
         except Exception as e:
-            logging.error(f"✗ Unexpected error opening serial port: {e}")
+            logging.error(f"✗ CRITICAL: Unexpected error opening serial port: {e}")
+            logging.error(f"Exception type: {type(e).__name__}")
+            logging.error("Full traceback:", exc_info=True)
             ser = None
             while not self.exit.is_set():
                 time.sleep(1)
+            logging.info("TV power thread exiting")
             return
 
         if ser is not None:

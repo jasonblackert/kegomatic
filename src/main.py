@@ -65,29 +65,41 @@ def main():
     parser.add_argument("--no-window", help="Run Flask only, no pywebview", action="store_true")
     args = parser.parse_args()
 
-    # Setup logging
+    # Setup logging with more detailed format
+    log_format = '%(asctime)s | %(levelname)-8s | %(processName)-20s | %(funcName)-25s | %(message)s'
     if args.debug:
-        logging.basicConfig(level=logging.DEBUG, format='%(asctime)s:%(levelname)s:%(message)s')
+        logging.basicConfig(level=logging.DEBUG, format=log_format)
+        print("Logging level: DEBUG (verbose)")
     elif args.info:
-        logging.basicConfig(level=logging.INFO, format='%(asctime)s:%(levelname)s:%(message)s')
+        logging.basicConfig(level=logging.INFO, format=log_format)
+        print("Logging level: INFO")
     else:
-        logging.basicConfig(level=logging.WARNING, format='%(asctime)s:%(levelname)s:%(message)s')
+        logging.basicConfig(level=logging.WARNING, format=log_format)
+        print("Logging level: WARNING (use --info or --debug for more detail)")
 
     print("="*60)
     print("Kegomatic Web UI Starting...")
     print("="*60)
+    print(f"Python version: {sys.version}")
+    print(f"Script directory: {SCRIPT_DIR}")
+    print("")
 
     # Load configuration
     try:
         config_path = os.path.join(SCRIPT_DIR, "config", "kegs.config")
+        logging.info(f"Loading configuration from {config_path}")
         Config.read(config_path)
         print(f"✓ Loaded config from {config_path}")
+        logging.info(f"✓ Configuration loaded successfully")
     except Exception as e:
-        logging.error(f"Unable to read config file: {e}")
+        logging.error(f"✗ CRITICAL: Unable to read config file: {e}")
+        logging.error("Full traceback:", exc_info=True)
+        print(f"✗ Failed to load configuration: {e}")
         sys.exit(1)
 
     # Parse keg configurations
     try:
+        logging.info("Parsing keg configurations...")
         active_keg1 = ConfigSectionMap("Active")['keg1']
         active_keg2 = ConfigSectionMap("Active")['keg2']
         active_keg3 = ConfigSectionMap("Active")['keg3']
@@ -95,6 +107,7 @@ def main():
         active_keg5 = ConfigSectionMap("Active")['keg5']
 
         print(f"✓ Active Kegs: {active_keg1} {active_keg2} {active_keg3} {active_keg4} {active_keg5}")
+        logging.info(f"Active kegs: 1={active_keg1}, 2={active_keg2}, 3={active_keg3}, 4={active_keg4}, 5={active_keg5}")
 
         keg_dict1 = ConfigSectionMap(active_keg1)
         keg_dict1['keg_id'] = active_keg1
@@ -108,9 +121,17 @@ def main():
         keg_dict5['keg_id'] = active_keg5
 
         tv_dict = ConfigSectionMap("TV")
+        logging.info(f"TV config: port={tv_dict.get('serialport')}, baud={tv_dict.get('baudrate')}")
 
+    except KeyError as ke:
+        logging.error(f"✗ CRITICAL: Missing required config key: {ke}")
+        logging.error("Full traceback:", exc_info=True)
+        print(f"✗ Config file error - missing key: {ke}")
+        sys.exit(1)
     except Exception as e:
-        logging.error(f"Config file error: {e}")
+        logging.error(f"✗ CRITICAL: Config file error: {e}")
+        logging.error("Full traceback:", exc_info=True)
+        print(f"✗ Config file error: {e}")
         sys.exit(1)
 
     # Create keg configs dictionary for API
@@ -193,13 +214,42 @@ def main():
     ]
 
     # Start all worker processes
-    print("Starting worker processes...")
+    print("\nStarting hardware worker processes...")
+    print("="*60)
+    started_workers = []
+    failed_workers = []
+
     for name, worker in workers:
         try:
             worker.start()
-            print(f"✓ Started {name}")
+            print(f"✓ Started {name} (PID: {worker.pid})")
+            logging.info(f"Started hardware worker: {name} (PID: {worker.pid})")
+            started_workers.append(name)
         except Exception as e:
             print(f"✗ Failed to start {name}: {e}")
+            logging.error(f"Failed to start hardware worker: {name}")
+            logging.error(f"Exception: {e}", exc_info=True)
+            failed_workers.append((name, str(e)))
+
+    # Wait a moment for workers to initialize
+    time.sleep(1)
+
+    # Print startup summary
+    print("\n" + "="*60)
+    print("HARDWARE INITIALIZATION SUMMARY")
+    print("="*60)
+    print(f"Successfully started: {len(started_workers)}/{len(workers)} workers")
+    if started_workers:
+        print("\nStarted workers:")
+        for name in started_workers:
+            print(f"  ✓ {name}")
+    if failed_workers:
+        print("\nFailed workers:")
+        for name, error in failed_workers:
+            print(f"  ✗ {name}: {error}")
+    print("\nNote: Check logs above for detailed hardware initialization status.")
+    print("Some hardware failures are normal in development environments.")
+    print("="*60)
 
     # Create Flask app
     print("\n" + "="*60)
