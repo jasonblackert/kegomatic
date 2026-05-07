@@ -721,6 +721,70 @@ body {
     background: #00cc00;
 }
 
+/* Backup/Restore Section */
+.backup-section {
+    background: var(--bg-dark);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 1.5rem;
+    margin-top: 1.5rem;
+}
+
+.backup-section h3 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0 0 1rem 0;
+    text-align: center;
+}
+
+.backup-content {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.backup-info {
+    text-align: center;
+}
+
+.backup-info p {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+.backup-buttons {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+}
+
+.btn-export,
+.btn-import {
+    padding: 0.75rem 2rem;
+    background: var(--border-color);
+    color: var(--text-primary);
+    border: 1px solid var(--text-secondary);
+    border-radius: 4px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: 'Inter', Arial, sans-serif;
+}
+
+.btn-export:hover,
+.btn-import:hover {
+    background: #505050;
+    transform: scale(1.05);
+}
+
+.btn-export:active,
+.btn-import:active {
+    transform: scale(0.95);
+}
+
 /* Keg Form Modal */
 .keg-form-modal {
     position: fixed;

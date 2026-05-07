@@ -51,7 +51,17 @@ function populateKegInfo() {
         setElementText(`name-${id}`, kegData.name || 'Unknown');
         setElementText(`brewery-${id}`, kegData.brewery || '---');
         setElementText(`type-${id}`, kegData.type || '---');
-        setElementText(`abv-${id}`, kegData.abv ? `${kegData.abv}%` : 'n/a');
+
+        // ABV - only add % if not N/A
+        const abv = kegData.abv || 'N/A';
+        if (abv.toLowerCase() === 'n/a' || abv === '') {
+            setElementText(`abv-${id}`, abv);
+        } else {
+            // Remove existing % if present, then add it
+            const abvValue = String(abv).replace('%', '');
+            setElementText(`abv-${id}`, `${abvValue}%`);
+        }
+
         setElementText(`ibu-${id}`, kegData.ibu || 'n/a');
 
         // Set brewery logo
@@ -159,6 +169,12 @@ function updateKegDisplay(kegId, data) {
                 // Update vertical bar height (max ~3 oz/s = 100%)
                 const percent = Math.min(100, (data.InstFlowRateOzS / 3) * 100);
                 flowRateElement.style.setProperty('--flow-height', `${percent}%`);
+
+                // Close popup if a new pour starts
+                const existingPopup = document.getElementById('pour-popup');
+                if (existingPopup && existingPopup.classList.contains('visible')) {
+                    hidePourPopup();
+                }
             } else {
                 flowRateElement.classList.remove('flow-active');
                 flowRateElement.style.setProperty('--flow-height', '0%');
@@ -493,6 +509,21 @@ function setupSettingsMenu() {
         await saveTVSettings();
     });
 
+    // Export backup button
+    document.getElementById('export-backup').addEventListener('click', async () => {
+        await exportBackup();
+    });
+
+    // Import backup file input
+    document.getElementById('import-file').addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            await importBackup(file);
+            // Reset input so same file can be selected again
+            e.target.value = '';
+        }
+    });
+
     // Load logos on first open
     loadLogos();
 }
@@ -663,5 +694,79 @@ async function saveTVSettings() {
     } catch (error) {
         console.error('Error saving TV settings:', error);
         alert(`Error saving TV settings: ${error.message}`);
+    }
+}
+
+async function exportBackup() {
+    try {
+        addLogMessage('⏳ Creating backup...');
+
+        const response = await fetch('/api/backup/export', {
+            method: 'POST'
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        // Get filename from Content-Disposition header or use default
+        const contentDisposition = response.headers.get('Content-Disposition');
+        let filename = 'kegomatic_backup.tar';
+        if (contentDisposition) {
+            const matches = /filename="?([^"]+)"?/.exec(contentDisposition);
+            if (matches) filename = matches[1];
+        }
+
+        // Download the file
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+
+        addLogMessage(`✓ Backup exported: ${filename}`);
+        console.log('Backup exported successfully');
+
+    } catch (error) {
+        console.error('Error exporting backup:', error);
+        addLogMessage(`✗ Backup export failed: ${error.message}`);
+        alert(`Error exporting backup: ${error.message}`);
+    }
+}
+
+async function importBackup(file) {
+    if (!confirm(`Import backup from ${file.name}?\n\nThis will overwrite existing configs, logos, and database.\n\nSoftware restart will be required.`)) {
+        return;
+    }
+
+    try {
+        addLogMessage('⏳ Importing backup...');
+
+        const formData = new FormData();
+        formData.append('backup', file);
+
+        const response = await fetch('/api/backup/import', {
+            method: 'POST',
+            body: formData
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            addLogMessage(`✓ Backup imported successfully (restart required)`);
+            alert('Backup imported successfully!\n\nSoftware restart required for changes to take effect.');
+            console.log('Backup imported:', result);
+        } else {
+            throw new Error(result.error || 'Unknown error');
+        }
+
+    } catch (error) {
+        console.error('Error importing backup:', error);
+        addLogMessage(`✗ Backup import failed: ${error.message}`);
+        alert(`Error importing backup: ${error.message}`);
     }
 }

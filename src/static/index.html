@@ -287,6 +287,23 @@
                     <button class="btn-save-tv" id="save-tv-settings">Save TV Settings</button>
                 </div>
             </div>
+
+            <!-- Backup/Restore Section -->
+            <div class="backup-section">
+                <h3>Backup & Restore</h3>
+                <div class="backup-content">
+                    <div class="backup-info">
+                        <p>Export all user data (configs, logos, database) to a .tar file for backup or transfer to another system.</p>
+                    </div>
+                    <div class="backup-buttons">
+                        <button class="btn-export" id="export-backup">Export Backup</button>
+                        <label class="btn-import" for="import-file">
+                            Import Backup
+                            <input type="file" id="import-file" accept=".tar" style="display: none;">
+                        </label>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 

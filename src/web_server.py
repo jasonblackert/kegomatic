@@ -8,7 +8,11 @@ import time
 import threading
 import logging
 import configparser
-from flask import Flask, render_template, jsonify, send_from_directory, request
+import tarfile
+import tempfile
+import subprocess
+from datetime import datetime
+from flask import Flask, render_template, jsonify, send_from_directory, request, send_file
 from flask_socketio import SocketIO, emit
 from queue import Empty
 
@@ -207,17 +211,13 @@ def edit_keg():
         if not config.has_section(current_keg_id):
             return jsonify({'success': False, 'error': f'Keg section {current_keg_id} not found'})
 
-        # Get old keg size to check if it changed
-        old_keg_size = float(config.get(current_keg_id, 'KegSizeL', fallback=20))
-        new_keg_size = float(keg_data.get('kegsizel', 20))
-
         config.set(current_keg_id, 'Name', keg_data.get('name', ''))
         config.set(current_keg_id, 'Brewery', keg_data.get('brewery', ''))
         config.set(current_keg_id, 'Type', keg_data.get('type', ''))
         config.set(current_keg_id, 'ABV', str(keg_data.get('abv', '')))
         config.set(current_keg_id, 'IBU', str(keg_data.get('ibu', '')))
         config.set(current_keg_id, 'CostOfKeg', str(keg_data.get('costofkeg', 0)))
-        config.set(current_keg_id, 'KegSizeL', str(new_keg_size))
+        config.set(current_keg_id, 'KegSizeL', str(keg_data.get('kegsizel', 0)))
         config.set(current_keg_id, 'PurchaseDate', keg_data.get('purchasedate', ''))
         config.set(current_keg_id, 'Logo', keg_data.get('logo', ''))
 
@@ -228,38 +228,6 @@ def edit_keg():
         # Update global keg configs
         _keg_configs[str(keg_number)] = dict(config.items(current_keg_id))
         _keg_configs[str(keg_number)]['keg_id'] = current_keg_id
-
-        # If keg size changed, recalculate beer remaining and fill percentage
-        recalculated_data = None
-        if old_keg_size != new_keg_size:
-            # Get current beer remaining from the keg data queue (last known state)
-            # We'll need to calculate: pouredOz = (oldMax - oldRemaining)
-            # then: newRemaining = newMax - pouredOz
-
-            # Constants
-            OZ_PER_LITER = 33.814
-
-            old_max_oz = old_keg_size * OZ_PER_LITER
-            new_max_oz = new_keg_size * OZ_PER_LITER
-
-            # Try to get current beer remaining from queue or use max as fallback
-            # For now, we'll send a message to the hardware thread to do the recalculation
-            # since it has the authoritative state
-
-            message = {
-                'type': 'recalculate_size',
-                'old_size_l': old_keg_size,
-                'new_size_l': new_keg_size,
-                'old_max_oz': old_max_oz,
-                'new_max_oz': new_max_oz
-            }
-
-            if f'keg_message{keg_number}' in _queues:
-                try:
-                    _queues[f'keg_message{keg_number}'].put(message)
-                    logging.info(f"Keg {keg_number} size changed: {old_keg_size}L -> {new_keg_size}L. Recalculating beer remaining.")
-                except Exception as e:
-                    logging.error(f"Error sending keg size change message: {e}")
 
         logging.info(f"Edited keg {keg_number} (ID: {current_keg_id})")
 
@@ -430,6 +398,189 @@ def save_tv_settings():
     except Exception as e:
         logging.error(f"Error saving TV settings: {e}")
         return jsonify({'success': False, 'error': str(e)})
+
+
+@app.route('/api/backup/export', methods=['POST'])
+def export_backup():
+    """Create a tar backup of user data"""
+    try:
+        # Create temporary tar file
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        tar_filename = f"kegomatic_backup_{timestamp}.tar"
+        tar_path = os.path.join(tempfile.gettempdir(), tar_filename)
+
+        with tarfile.open(tar_path, 'w') as tar:
+            # Add specific config files (not .example files)
+            config_dir = os.path.join(SCRIPT_DIR, 'config')
+            config_files = ['kegs.config', 'config.env']
+            for config_file in config_files:
+                config_file_path = os.path.join(config_dir, config_file)
+                if os.path.exists(config_file_path):
+                    tar.add(config_file_path, arcname=f'config/{config_file}')
+                    logging.info(f"Added {config_file} to backup")
+
+            # Add logos directory
+            logos_dir = os.path.join(SCRIPT_DIR, 'logos')
+            if os.path.exists(logos_dir):
+                tar.add(logos_dir, arcname='logos')
+                logging.info(f"Added logos directory to backup")
+
+            # Export MySQL database to SQL file
+            try:
+                db_backup_path = os.path.join(tempfile.gettempdir(), 'database_backup.sql')
+
+                # Build mysqldump command
+                cmd = [
+                    'mysqldump',
+                    '-h', os.environ.get('DB_HOST', 'localhost'),
+                    '-u', os.environ.get('DB_USER', 'kegomatic')
+                ]
+
+                # Add password if present
+                db_password = os.environ.get('DB_PASSWORD', '')
+                if db_password:
+                    cmd.append(f'-p{db_password}')
+
+                # Add database name
+                cmd.append(os.environ.get('DB_NAME', 'keg'))
+
+                # Run mysqldump
+                with open(db_backup_path, 'w') as f:
+                    result = subprocess.run(cmd, stdout=f, stderr=subprocess.PIPE, text=True)
+
+                    if result.returncode != 0:
+                        logging.warning(f"mysqldump returned non-zero exit code: {result.stderr}")
+                    else:
+                        tar.add(db_backup_path, arcname='database.sql')
+                        logging.info(f"Added database backup to tar")
+
+                # Clean up temp SQL file
+                if os.path.exists(db_backup_path):
+                    os.remove(db_backup_path)
+
+            except FileNotFoundError:
+                logging.warning("mysqldump not found - skipping database backup")
+            except Exception as e:
+                logging.warning(f"Could not backup database: {e}")
+
+        logging.info(f"Backup created: {tar_path}")
+
+        # Send file and clean up after
+        return send_file(
+            tar_path,
+            mimetype='application/x-tar',
+            as_attachment=True,
+            download_name=tar_filename
+        )
+
+    except Exception as e:
+        logging.error(f"Error creating backup: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/backup/import', methods=['POST'])
+def import_backup():
+    """Import a tar backup file"""
+    try:
+        if 'backup' not in request.files:
+            return jsonify({'success': False, 'error': 'No backup file provided'})
+
+        file = request.files['backup']
+        if file.filename == '':
+            return jsonify({'success': False, 'error': 'No file selected'})
+
+        if not file.filename.endswith('.tar'):
+            return jsonify({'success': False, 'error': 'File must be a .tar file'})
+
+        # Save uploaded file to temp location
+        temp_tar_path = os.path.join(tempfile.gettempdir(), 'kegomatic_import.tar')
+        file.save(temp_tar_path)
+
+        # Extract tar file
+        with tarfile.open(temp_tar_path, 'r') as tar:
+            # Get list of members
+            members = tar.getmembers()
+            logging.info(f"Backup contains {len(members)} files/directories")
+
+            # Extract config files
+            config_members = [m for m in members if m.name.startswith('config/')]
+            if config_members:
+                for member in config_members:
+                    tar.extract(member, SCRIPT_DIR)
+                logging.info(f"Restored config files")
+
+            # Extract logos directory
+            logo_members = [m for m in members if m.name.startswith('logos/')]
+            if logo_members:
+                for member in logo_members:
+                    tar.extract(member, SCRIPT_DIR)
+                logging.info(f"Restored logos directory")
+
+            # Restore database if present
+            db_members = [m for m in members if m.name == 'database.sql']
+            if db_members:
+                try:
+                    # Extract SQL file
+                    tar.extract(db_members[0], tempfile.gettempdir())
+                    db_sql_path = os.path.join(tempfile.gettempdir(), 'database.sql')
+
+                    # Build mysql command
+                    cmd = [
+                        'mysql',
+                        '-h', os.environ.get('DB_HOST', 'localhost'),
+                        '-u', os.environ.get('DB_USER', 'kegomatic')
+                    ]
+
+                    # Add password if present
+                    db_password = os.environ.get('DB_PASSWORD', '')
+                    if db_password:
+                        cmd.append(f'-p{db_password}')
+
+                    # Add database name
+                    cmd.append(os.environ.get('DB_NAME', 'keg'))
+
+                    # Import database using mysql
+                    with open(db_sql_path, 'r') as f:
+                        result = subprocess.run(cmd, stdin=f, stderr=subprocess.PIPE, text=True)
+
+                        if result.returncode != 0:
+                            logging.warning(f"mysql returned non-zero exit code: {result.stderr}")
+                        else:
+                            logging.info(f"Restored database")
+
+                    # Clean up temp SQL file
+                    if os.path.exists(db_sql_path):
+                        os.remove(db_sql_path)
+
+                except FileNotFoundError:
+                    logging.warning("mysql not found - skipping database restore")
+                except Exception as e:
+                    logging.warning(f"Could not restore database: {e}")
+
+        # Clean up temp tar file
+        os.remove(temp_tar_path)
+
+        # Update global keg configs
+        config_path = os.path.join(SCRIPT_DIR, 'config', 'kegs.config')
+        if os.path.exists(config_path):
+            from hardware import Config, ConfigSectionMap
+            Config.read(config_path)
+
+            # Reload keg configs
+            for i in range(1, 6):
+                try:
+                    active_keg_id = ConfigSectionMap("Active")[f'keg{i}']
+                    _keg_configs[str(i)] = ConfigSectionMap(active_keg_id)
+                    _keg_configs[str(i)]['keg_id'] = active_keg_id
+                except:
+                    pass
+
+        logging.info("Backup imported successfully")
+        return jsonify({'success': True, 'message': 'Backup restored successfully'})
+
+    except Exception as e:
+        logging.error(f"Error importing backup: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 # SocketIO Events

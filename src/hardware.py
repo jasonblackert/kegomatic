@@ -139,44 +139,6 @@ class read_keg_data(multiprocessing.Process):
         else:
             keg_data_dict['PourStatus'] = "Ready"
         while not self.exit.is_set():
-            # Check for messages from web server (e.g., keg size change)
-            try:
-                message = self.keg_message_q.get_nowait()
-                if isinstance(message, dict) and message.get('type') == 'recalculate_size':
-                    # Keg size changed - recalculate beer remaining
-                    old_max_oz = message['old_max_oz']
-                    new_max_oz = message['new_max_oz']
-
-                    # Calculate how much was poured: poured = oldMax - oldRemaining
-                    old_remaining_oz = (float(self.keg_dict['kegsizel']) - tally) / oz_per_l
-                    old_max_l = float(self.keg_dict['kegsizel'])
-                    poured_l = tally  # tally is total poured in liters
-
-                    # Update keg size in dict
-                    self.keg_dict['kegsizel'] = str(message['new_size_l'])
-
-                    # Recalculate: newRemaining = newMax - poured
-                    # Keep tally the same (amount poured stays constant)
-                    # Recalculate percentage with new keg size
-                    percent_left = int((((float(self.keg_dict['kegsizel']) - tally) + 0.001) / float(self.keg_dict['kegsizel']) ) * 100 )
-
-                    if percent_left < 0:
-                        percent_left = 0
-                        empty_keg = True
-                    else:
-                        empty_keg = False
-
-                    # Recalculate cost per liter with new keg size
-                    cost_per_l = float(self.keg_dict['costofkeg']) / float(self.keg_dict['kegsizel'])
-
-                    logging.info(f"Keg size recalculated: {message['old_size_l']}L -> {message['new_size_l']}L, "
-                               f"Poured: {poured_l:.2f}L, New remaining: {float(self.keg_dict['kegsizel']) - tally:.2f}L, "
-                               f"New percent: {percent_left}%")
-            except Empty:
-                pass
-            except Exception as e:
-                logging.error(f"Error processing message: {e}")
-
             currentTime = int(time.time() * FlowMeter.MS_IN_A_SECOND)
             # The Pour has stopped but may not be over
             if (self.fm.thisPour > 0.01 and currentTime - self.fm.lastClick > 500):
