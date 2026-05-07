@@ -1,0 +1,87 @@
+Logging level: WARNING (errors and warnings only)
+Use -v or --verbose flag with start_keg.sh for detailed logs
+============================================================
+Kegomatic Web UI Starting...
+============================================================
+Python version: 3.13.5 (main, Jun 25 2025, 18:55:22) [GCC 14.2.0]
+Script directory: /home/kegomatic/git/kegomatic/src
+
+✓ Loaded config from /home/kegomatic/git/kegomatic/src/config/kegs.config
+✓ Active Kegs: EG AC AC AC AC
+
+============================================================
+Starting Hardware Workers...
+============================================================
+Starting on gpio 17
+Starting on gpio 27
+Starting on gpio 22
+Starting on gpio 23
+Starting on gpio 24
+Button thread starting on gpio 25
+Temp Sensor thread starting...
+LED Control thread starting on gpio 18
+
+Starting hardware worker processes...
+============================================================
+✓ Started keg_thread1 (PID: 1816)
+✓ Started keg_thread2 (PID: 1817)
+✓ Started keg_thread3 (PID: 1819)
+✓ Started keg_thread4 (PID: 1821)
+✓ Started keg_thread5 (PID: 1822)
+✓ Started tv_thread (PID: 1824)
+✓ Started pb_thread (PID: 1826)
+✓ Started led_thread (PID: 1828)
+2026-05-07 09:37:18,315 | ERROR    | manage_tv_power-6    | _send_tv_cmd              | The TV has rejected the command
+2026-05-07 09:37:18,517 | ERROR    | manage_tv_power-6    | _send_tv_cmd              | The TV has rejected the command
+2026-05-07 09:37:39,122 | ERROR    | manage_tv_power-6    | _send_tv_cmd              | The TV has rejected the command
+2026-05-07 09:37:39,323 | ERROR    | manage_tv_power-6    | _send_tv_cmd              | The TV has rejected the command
+✓ Started temp_sensor_thread (PID: 1829)
+
+============================================================
+HARDWARE INITIALIZATION SUMMARY
+============================================================
+Successfully started: 9/9 workers
+
+Started workers:
+  ✓ keg_thread1
+  ✓ keg_thread2
+  ✓ keg_thread3
+  ✓ keg_thread4
+  ✓ keg_thread5
+  ✓ tv_thread
+  ✓ pb_thread
+  ✓ led_thread
+  ✓ temp_sensor_thread
+
+Note: Check logs above for detailed hardware initialization status.
+Some hardware failures are normal in development environments.
+============================================================
+
+============================================================
+Starting Flask Server...
+============================================================
+✓ DataGatherer thread started
+✓ Flask server starting on port 5000
+ * Serving Flask app 'web_server'
+ * Debug mode: off
+2026-05-07 09:37:39,429 | INFO     | MainProcess          | _log                      | [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://10.249.24.19:5000
+2026-05-07 09:37:39,429 | INFO     | MainProcess          | _log                      | [33mPress CTRL+C to quit[0m
+2026-05-07 09:37:39,524 | ERROR    | manage_tv_power-6    | _send_tv_cmd              | The TV has rejected the command
+2026-05-07 09:37:39,624 | ERROR    | manage_tv_power-6    | _send_tv_cmd              | Unable to command the TV, it is not responding
+2026-05-07 09:37:57,485 | INFO     | MainProcess          | _log                      | 127.0.0.1 - - [07/May/2026 09:37:57] "[36mGET / HTTP/1.1[0m" 304 -
+2026-05-07 09:37:58,163 | INFO     | MainProcess          | _log                      | 127.0.0.1 - - [07/May/2026 09:37:58] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2026-05-07 09:37:58,190 | INFO     | MainProcess          | _log                      | 127.0.0.1 - - [07/May/2026 09:37:58] "[36mGET /static/app.js HTTP/1.1[0m" 304 -
+2026-05-07 09:37:58,286 | INFO     | MainProcess          | _log                      | 127.0.0.1 - - [07/May/2026 09:37:58] "[36mGET /logos/Jason_Blackert_Venmo.png HTTP/1.1[0m" 304 -
+2026-05-07 09:37:58,763 | INFO     | MainProcess          | _log                      | 127.0.0.1 - - [07/May/2026 09:37:58] "GET /socket.io/?EIO=4&transport=polling&t=Pu2gD57 HTTP/1.1" 200 -
+2026-05-07 09:37:58,767 | INFO     | MainProcess          | _log                      | 127.0.0.1 - - [07/May/2026 09:37:58] "[36mGET /static/DSEG7ModernMini-Regular.woff2 HTTP/1.1[0m" 304 -
+2026-05-07 09:37:58,856 | INFO     | MainProcess          | _log                      | 127.0.0.1 - - [07/May/2026 09:37:58] "GET /api/config HTTP/1.1" 200 -
+2026-05-07 09:37:58,866 | INFO     | MainProcess          | _log                      | 127.0.0.1 - - [07/May/2026 09:37:58] "GET /api/logos HTTP/1.1" 200 -
+2026-05-07 09:37:59,071 | INFO     | MainProcess          | _log                      | 127.0.0.1 - - [07/May/2026 09:37:59] "POST /socket.io/?EIO=4&transport=polling&t=Pu2gDAe&sid=J2dTu78K_NV__B6FAAAA HTTP/1.1" 200 -
+2026-05-07 09:37:59,075 | INFO     | MainProcess          | _log                      | 127.0.0.1 - - [07/May/2026 09:37:59] "GET /socket.io/?EIO=4&transport=polling&t=Pu2gDBB&sid=J2dTu78K_NV__B6FAAAA HTTP/1.1" 200 -
+2026-05-07 09:37:59,279 | INFO     | MainProcess          | _log                      | 127.0.0.1 - - [07/May/2026 09:37:59] "GET /socket.io/?EIO=4&transport=polling&t=Pu2gDEO&sid=J2dTu78K_NV__B6FAAAA HTTP/1.1" 200 -
+2026-05-07 09:37:59,294 | INFO     | MainProcess          | _log                      | 127.0.0.1 - - [07/May/2026 09:37:59] "[36mGET /logos/empty_keg.png HTTP/1.1[0m" 304 -
+2026-05-07 09:37:59,377 | INFO     | MainProcess          | _log                      | 127.0.0.1 - - [07/May/2026 09:37:59] "[36mGET /logos/peets.png HTTP/1.1[0m" 304 -
+2026-05-07 09:38:26,787 | INFO     | MainProcess          | _log                      | 127.0.0.1 - - [07/May/2026 09:38:26] "[36mGET /logos/Jason_Blackert_Venmo.png HTTP/1.1[0m" 304 -
