@@ -58,6 +58,7 @@ def launch_browser_fullscreen(url, fullscreen=False):
 
     if chrome_cmd:
         try:
+            print(f"Attempting to launch Chromium/Chrome: {chrome_cmd}")
             subprocess.Popen([
                 chrome_cmd,
                 '--kiosk',
@@ -67,10 +68,11 @@ def launch_browser_fullscreen(url, fullscreen=False):
                 '--disable-session-crashed-bubble',
                 url
             ])
-            print(f"✓ Launched browser in fullscreen mode: {chrome_cmd}")
+            print(f"✓ Launched Chromium/Chrome in fullscreen mode: {chrome_cmd}")
             return
         except Exception as e:
-            print(f"Warning: Could not launch Chrome in fullscreen: {e}")
+            print(f"Warning: Could not launch Chromium/Chrome in fullscreen: {e}")
+            print(f"Falling back to Firefox...")
 
     # Try Firefox as fallback
     firefox_paths = [
