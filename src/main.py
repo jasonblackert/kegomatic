@@ -68,14 +68,11 @@ def launch_browser_fullscreen(url, fullscreen=False):
     if chrome_cmd:
         try:
             print(f"Attempting to launch Chromium/Chrome: {chrome_cmd}")
+            # Use simpler flags for better compatibility on Raspberry Pi
             subprocess.Popen([
                 chrome_cmd,
-                '--kiosk',
                 '--start-fullscreen',
-                '--disable-infobars',
-                '--noerrdialogs',
-                '--disable-session-crashed-bubble',
-                url
+                '--app=' + url
             ])
             print(f"✓ Launched Chromium/Chrome in fullscreen mode: {chrome_cmd}")
             return
@@ -147,10 +144,13 @@ def main():
     parser = argparse.ArgumentParser(description='Kegomatic Web UI')
     parser.add_argument("--debug", help="Debug level log output", action="store_true")
     parser.add_argument("--info", help="Info level log output", action="store_true")
-    parser.add_argument("--fullscreen", help="Fullscreen window", action="store_true")
+    parser.add_argument("--windowed", help="Run in windowed mode (default is fullscreen)", action="store_true")
     parser.add_argument("--port", help="Flask port", type=int, default=5000)
     parser.add_argument("--no-window", help="Run Flask only, no pywebview", action="store_true")
     args = parser.parse_args()
+
+    # Fullscreen is default, unless --windowed is specified
+    args.fullscreen = not args.windowed
 
     # Setup logging with more detailed format
     log_format = '%(asctime)s | %(levelname)-8s | %(processName)-20s | %(funcName)-25s | %(message)s'
