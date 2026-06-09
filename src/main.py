@@ -27,6 +27,56 @@ from hardware import (
 from web_server import create_app, DataGatherer
 
 
+def launch_browser_fullscreen(url, fullscreen=False):
+    """Launch browser in fullscreen mode using command-line arguments"""
+    import webbrowser
+    import subprocess
+    import shutil
+
+    # If fullscreen not requested, use default browser
+    if not fullscreen:
+        webbrowser.open(url)
+        return
+
+    # Try to launch Chromium/Chrome in fullscreen kiosk mode
+    chrome_paths = [
+        '/usr/bin/chromium-browser',
+        '/usr/bin/chromium',
+        '/usr/bin/google-chrome',
+        '/usr/bin/chrome',
+        shutil.which('chromium-browser'),
+        shutil.which('chromium'),
+        shutil.which('google-chrome'),
+        shutil.which('chrome')
+    ]
+
+    chrome_cmd = None
+    for path in chrome_paths:
+        if path and os.path.exists(path):
+            chrome_cmd = path
+            break
+
+    if chrome_cmd:
+        try:
+            subprocess.Popen([
+                chrome_cmd,
+                '--kiosk',
+                '--start-fullscreen',
+                '--disable-infobars',
+                '--noerrdialogs',
+                '--disable-session-crashed-bubble',
+                url
+            ])
+            print(f"✓ Launched browser in fullscreen mode: {chrome_cmd}")
+            return
+        except Exception as e:
+            print(f"Warning: Could not launch Chrome in fullscreen: {e}")
+
+    # Fallback to default browser
+    print("Chrome not found, using default browser (press F11 for fullscreen)")
+    webbrowser.open(url)
+
+
 def stop_workers(workers):
     """
     Stop all hardware worker processes cleanly
@@ -314,8 +364,7 @@ def main():
         except ImportError as e:
             print(f"Warning: pywebview not available: {e}")
             print("Opening browser instead...")
-            import webbrowser
-            webbrowser.open(url)
+            launch_browser_fullscreen(url, args.fullscreen)
             print("\nPress Ctrl+C to stop")
             try:
                 while True:
@@ -332,14 +381,9 @@ def main():
                 print("Consider using Python 3.9-3.12, or run with --no-window flag")
 
             print("\nOpening browser as fallback...")
-            import webbrowser
-            webbrowser.open(url)
+            launch_browser_fullscreen(url, args.fullscreen)
             print("\nPress Ctrl+C to stop")
             try:
-                while True:
-                    time.sleep(1)
-            except KeyboardInterrupt:
-                print("\nKeyboard interrupt received")
                 while True:
                     time.sleep(1)
             except KeyboardInterrupt:
