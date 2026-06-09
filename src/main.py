@@ -68,11 +68,13 @@ def launch_browser_fullscreen(url, fullscreen=False):
     if chrome_cmd:
         try:
             print(f"Attempting to launch Chromium/Chrome: {chrome_cmd}")
-            # Use simpler flags for better compatibility on Raspberry Pi
+            # Use kiosk mode which forces fullscreen correctly on Raspberry Pi
             subprocess.Popen([
                 chrome_cmd,
-                '--start-fullscreen',
-                '--app=' + url
+                '--kiosk',
+                '--noerrdialogs',
+                '--disable-infobars',
+                url
             ])
             print(f"✓ Launched Chromium/Chrome in fullscreen mode: {chrome_cmd}")
             return
