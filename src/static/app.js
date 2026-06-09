@@ -206,8 +206,8 @@ function updateKegDisplay(kegId, data) {
         if (flowRateElement) {
             if (data.InstFlowRateOzS > 0) {
                 flowRateElement.classList.add('flow-active');
-                // Update vertical bar height (max ~3 oz/s = 100%)
-                const percent = Math.min(100, (data.InstFlowRateOzS / 3) * 100);
+                // Update vertical bar height (max 0.75 oz/s = 100%)
+                const percent = Math.min(100, (data.InstFlowRateOzS / 0.75) * 100);
                 flowRateElement.style.setProperty('--flow-height', `${percent}%`);
 
                 // Close popup if a new pour starts
