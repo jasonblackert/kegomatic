@@ -266,7 +266,7 @@ body {
     }
 }
 
-/* Flowing animation - moves the gradient */
+/* Flowing animation - moves the gradient to the left */
 .progress-fill.flowing {
     background: repeating-linear-gradient(
         to right,
@@ -280,15 +280,15 @@ body {
         transparent 20px
     );
     background-size: 20px 100%;
-    animation: flow-right 1s linear infinite;
+    animation: flow-left 1s linear infinite;
 }
 
-@keyframes flow-right {
+@keyframes flow-left {
     0% {
         background-position: 0 0;
     }
     100% {
-        background-position: 20px 0;
+        background-position: -20px 0;
     }
 }
 

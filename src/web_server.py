@@ -647,6 +647,28 @@ def calculate_empty_keg(keg_number):
         return jsonify({'success': False, 'error': str(e)})
 
 
+@app.route('/api/tv/activity', methods=['POST'])
+def tv_activity():
+    """Handle user activity to reset TV timer and turn on TV"""
+    try:
+        # Send PowerOn message to TV thread via queue
+        if 'tv_message_m2t' in _queues:
+            try:
+                _queues['tv_message_m2t'].put({'PowerOn': True})
+                logging.debug("User activity detected - sent PowerOn to TV thread")
+                return jsonify({'success': True})
+            except Exception as e:
+                logging.error(f"Error sending PowerOn to TV thread: {e}")
+                return jsonify({'success': False, 'error': str(e)})
+        else:
+            logging.warning("tv_message_m2t queue not available")
+            return jsonify({'success': False, 'error': 'TV queue not available'})
+
+    except Exception as e:
+        logging.error(f"Error handling TV activity: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+
 # SocketIO Events
 
 @socketio.on('connect')

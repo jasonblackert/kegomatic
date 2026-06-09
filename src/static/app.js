@@ -20,6 +20,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setupSocketListeners();
     fetchInitialConfig();
     setupSettingsMenu();
+    setupUserActivityTracking();
 });
 
 // Initialize UI elements
@@ -69,6 +70,14 @@ function populateKegInfo() {
         if (logoImg && kegData.logo) {
             logoImg.src = `/logos/${kegData.logo}`;
             logoImg.alt = kegData.brewery || 'Brewery Logo';
+        }
+
+        // If keg name is "N/A", set status to empty
+        const statusElement = document.getElementById(`status-${id}`);
+        if (statusElement && kegData.name && kegData.name.toUpperCase() === 'N/A') {
+            statusElement.classList.add('empty');
+            statusElement.classList.remove('pouring');
+            statusElement.innerHTML = '<span class="status-dot"></span> N/A';
         }
     });
 }
@@ -927,4 +936,37 @@ async function setKegAsEmpty() {
         console.error('Error setting keg as empty:', error);
         alert(`Error setting keg as empty: ${error.message}`);
     }
+}
+
+// Setup user activity tracking to reset TV timer and turn on TV
+function setupUserActivityTracking() {
+    let activityTimeout = null;
+
+    // Function to notify server of user activity
+    async function notifyUserActivity() {
+        try {
+            await fetch('/api/tv/activity', {
+                method: 'POST'
+            });
+        } catch (error) {
+            console.error('Error notifying user activity:', error);
+        }
+    }
+
+    // Throttle activity notifications to once per second
+    function handleActivity() {
+        if (!activityTimeout) {
+            notifyUserActivity();
+            activityTimeout = setTimeout(() => {
+                activityTimeout = null;
+            }, 1000);
+        }
+    }
+
+    // Listen for various user interactions
+    document.addEventListener('mousemove', handleActivity);
+    document.addEventListener('mousedown', handleActivity);
+    document.addEventListener('keydown', handleActivity);
+    document.addEventListener('touchstart', handleActivity);
+    document.addEventListener('click', handleActivity);
 }
