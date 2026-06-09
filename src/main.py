@@ -72,8 +72,34 @@ def launch_browser_fullscreen(url, fullscreen=False):
         except Exception as e:
             print(f"Warning: Could not launch Chrome in fullscreen: {e}")
 
+    # Try Firefox as fallback
+    firefox_paths = [
+        '/usr/bin/firefox',
+        '/usr/bin/firefox-esr',
+        shutil.which('firefox'),
+        shutil.which('firefox-esr')
+    ]
+
+    firefox_cmd = None
+    for path in firefox_paths:
+        if path and os.path.exists(path):
+            firefox_cmd = path
+            break
+
+    if firefox_cmd:
+        try:
+            subprocess.Popen([
+                firefox_cmd,
+                '--kiosk',
+                url
+            ])
+            print(f"✓ Launched Firefox in fullscreen mode: {firefox_cmd}")
+            return
+        except Exception as e:
+            print(f"Warning: Could not launch Firefox in fullscreen: {e}")
+
     # Fallback to default browser
-    print("Chrome not found, using default browser (press F11 for fullscreen)")
+    print("Chrome/Firefox not found, using default browser (press F11 for fullscreen)")
     webbrowser.open(url)
 
 
