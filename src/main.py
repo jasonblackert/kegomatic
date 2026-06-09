@@ -33,8 +33,11 @@ def launch_browser_fullscreen(url, fullscreen=False):
     import subprocess
     import shutil
 
+    print(f"launch_browser_fullscreen called: url={url}, fullscreen={fullscreen}")
+
     # If fullscreen not requested, use default browser
     if not fullscreen:
+        print("Fullscreen not requested, using default browser")
         webbrowser.open(url)
         return
 
@@ -50,11 +53,17 @@ def launch_browser_fullscreen(url, fullscreen=False):
         shutil.which('chrome')
     ]
 
+    print(f"Checking Chrome paths: {chrome_paths}")
+
     chrome_cmd = None
     for path in chrome_paths:
         if path and os.path.exists(path):
             chrome_cmd = path
+            print(f"✓ Found Chrome/Chromium at: {chrome_cmd}")
             break
+
+    if not chrome_cmd:
+        print("Chrome/Chromium not found in any expected location")
 
     if chrome_cmd:
         try:
