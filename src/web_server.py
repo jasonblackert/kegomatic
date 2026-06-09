@@ -393,6 +393,18 @@ def save_tv_settings():
 
         logging.info(f"TV settings updated: {serialport}, {baudrate}, {sleeptimesec}")
 
+        # Send update message to TV thread to apply settings immediately
+        if 'tv_message_m2t' in _queues:
+            try:
+                _queues['tv_message_m2t'].put({
+                    'UpdateSettings': {
+                        'sleeptimesec': sleeptimesec
+                    }
+                })
+                logging.info("Sent TV settings update to TV thread")
+            except Exception as e:
+                logging.error(f"Error sending TV settings update: {e}")
+
         return jsonify({'success': True})
 
     except Exception as e:

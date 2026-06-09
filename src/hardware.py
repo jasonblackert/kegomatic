@@ -616,6 +616,12 @@ class manage_tv_power(multiprocessing.Process):
                 logging.debug("Empty Q when getting data from the tv_message_m2t queue")
                 m2t_dict = dict()
 
+            # Update TV settings dynamically
+            if "UpdateSettings" in m2t_dict:
+                if "sleeptimesec" in m2t_dict["UpdateSettings"]:
+                    self.tv_dict['sleeptimesec'] = str(m2t_dict["UpdateSettings"]["sleeptimesec"])
+                    logging.info(f"TV sleep timer updated to {self.tv_dict['sleeptimesec']} seconds")
+
             # Power on from someone pouring beer
             if "PowerOn" in m2t_dict:
                 if not tv_power_on:

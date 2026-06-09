@@ -766,8 +766,8 @@ async function saveTVSettings() {
 
         if (result.success) {
             console.log('TV settings saved successfully');
-            addLogMessage(`✓ TV settings updated: ${settings.serialport} (restart required)`);
-            alert('TV settings saved successfully!\n\nNote: Software restart required for changes to take effect.');
+            addLogMessage(`✓ TV settings updated: ${settings.serialport}`);
+            alert('TV settings saved successfully!\n\nSleep timer changes applied immediately.\nSerial port changes require software restart.');
         } else {
             console.error('Error saving TV settings:', result.error);
             alert(`Error saving TV settings: ${result.error}`);
