@@ -151,6 +151,7 @@ src/logos/*.jpg
 src/logos/*.jpeg
 src/config/kegs.config
 setup_database.sh
+kegomatic.log
 
 # Spyder project settings
 .spyderproject
