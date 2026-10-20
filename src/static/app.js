@@ -707,24 +707,32 @@ async function saveKegForm() {
 
         const result = await response.json();
 
-        if (result.success) {
-            console.log('Keg saved successfully:', result);
-
-            // Close form modal
-            document.getElementById('keg-form-modal').classList.remove('visible');
-
-            // Reload config
-            await fetchInitialConfig();
-
-            // Update settings modal
-            updateSettingsModal();
-
-            // Show success message in log
-            addLogMessage(`✓ Keg ${kegNum} ${mode === 'edit' ? 'updated' : 'replaced'}: ${kegData.name}`);
-        } else {
-            console.error('Error saving keg:', result.error);
-            alert(`Error saving keg: ${result.error}`);
+        if (!response.ok || !result.success) {
+            const errorMessage = result.error || `HTTP error! status: ${response.status}`;
+            console.error('Error saving keg:', errorMessage);
+            alert(`Error saving keg: ${errorMessage}`);
+            return;
         }
+
+        if (result.reload_error) {
+            console.error('Keg saved, but server reload failed:', result.reload_error);
+            alert(`Keg saved, but the server could not reload the keg worker: ${result.reload_error}`);
+            return;
+        }
+
+        console.log('Keg saved successfully:', result);
+
+        // Close form modal
+        document.getElementById('keg-form-modal').classList.remove('visible');
+
+        // Reload config
+        await fetchInitialConfig();
+
+        // Update settings modal
+        updateSettingsModal();
+
+        // Show success message in log
+        addLogMessage(`✓ Keg ${kegNum} ${mode === 'edit' ? 'updated' : 'replaced'}: ${kegData.name}`);
     } catch (error) {
         console.error('Error saving keg:', error);
         alert(`Error saving keg: ${error.message}`);
@@ -893,16 +901,21 @@ async function setKegAsEmpty() {
 
         // Get current keg data from config
         const currentKeg = config.kegs[kegNum];
+        if (!currentKeg) {
+            throw new Error(`Keg ${kegNum} was not found in the current configuration`);
+        }
+
+        // Config keys are normalized to lowercase by configparser.
         const kegData = {
-            name: currentKeg.Name,
-            brewery: currentKeg.Brewery,
-            type: currentKeg.Type,
-            abv: currentKeg.ABV,
-            ibu: currentKeg.IBU,
-            costofkeg: parseFloat(currentKeg.CostOfKeg),
+            name: currentKeg.name || '',
+            brewery: currentKeg.brewery || '',
+            type: currentKeg.type || '',
+            abv: currentKeg.abv || '',
+            ibu: currentKeg.ibu || '',
+            costofkeg: parseFloat(currentKeg.costofkeg),
             kegsizel: calcResult.new_size_l,  // Use calculated size
-            purchasedate: currentKeg.PurchaseDate,
-            logo: currentKeg.Logo
+            purchasedate: currentKeg.purchasedate || '',
+            logo: currentKeg.logo || ''
         };
 
         // Update via edit endpoint
@@ -919,19 +932,24 @@ async function setKegAsEmpty() {
 
         const result = await response.json();
 
-        if (result.success) {
-            // Close confirmation modal
-            document.getElementById('empty-confirm-modal').classList.remove('visible');
-
-            // Reload config
-            await fetchInitialConfig();
-            updateSettingsModal();
-
-            addLogMessage(`✓ Keg ${kegNum} set as empty (restart required)`);
-            alert('Keg set as empty successfully!\n\nSoftware restart required for changes to take effect.');
-        } else {
-            throw new Error(result.error);
+        if (!response.ok || !result.success) {
+            throw new Error(result.error || `HTTP error! status: ${response.status}`);
         }
+
+        if (result.reload_error) {
+            console.error('Keg emptied, but server reload failed:', result.reload_error);
+            alert(`Keg was updated, but the server could not reload the keg worker: ${result.reload_error}`);
+            return;
+        }
+
+        // Close confirmation modal
+        document.getElementById('empty-confirm-modal').classList.remove('visible');
+
+        // Reload config
+        await fetchInitialConfig();
+        updateSettingsModal();
+
+        addLogMessage(`✓ Keg ${kegNum} set as empty`);
     } catch (error) {
         console.error('Error setting keg as empty:', error);
         alert(`Error setting keg as empty: ${error.message}`);

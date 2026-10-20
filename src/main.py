@@ -12,6 +12,7 @@ import threading
 import multiprocessing
 import configparser
 import signal
+import inspect
 
 # Add current directory to path for imports
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -139,6 +140,156 @@ def stop_workers(workers):
             print(f"Error stopping {name}: {e}")
 
     print("All hardware workers stopped.")
+
+
+class HardwareWorkerManager:
+    """Own hardware processes and safely reload keg workers from config."""
+
+    REQUIRED_KEG_KEYS = ('name', 'costofkeg', 'kegsizel', 'keg_id')
+
+    def __init__(self, config_path, keg_configs, queues, tv_dict, keg_pins):
+        self.config_path = config_path
+        # Keep an internal active snapshot separate from the web layer's dict.
+        # Web routes update their dict immediately after writing disk; retaining
+        # our own snapshot lets the mtime watcher detect and apply that change.
+        self.keg_configs = {str(number): dict(config)
+                            for number, config in keg_configs.items()}
+        self._published_configs = keg_configs
+        self.queues = queues
+        self.tv_dict = tv_dict
+        self.keg_pins = keg_pins
+        self.workers = {}
+        self._config_mtime = None
+        self._lock = threading.RLock()
+        self._stop_watcher = threading.Event()
+        self._watcher = threading.Thread(target=self._watch_config, daemon=True,
+                                          name='keg-config-watcher')
+
+    def register(self, name, worker):
+        self.workers[name] = worker
+
+    def start_watcher(self):
+        self._config_mtime = os.path.getmtime(self.config_path)
+        self._watcher.start()
+
+    def _load_snapshot(self):
+        parser = configparser.ConfigParser()
+        if not parser.read(self.config_path):
+            raise ValueError(f'Unable to read config file: {self.config_path}')
+        snapshot = {}
+        for number in range(1, 6):
+            key = f'keg{number}'
+            if not parser.has_option('Active', key):
+                raise ValueError(f'Missing Active.{key}')
+            keg_id = parser.get('Active', key).strip()
+            if not parser.has_section(keg_id):
+                raise ValueError(f'Missing keg section {keg_id}')
+            values = dict(parser.items(keg_id))
+            values['keg_id'] = keg_id
+            for required in self.REQUIRED_KEG_KEYS:
+                if not values.get(required, '').strip():
+                    raise ValueError(f'Missing {required} for keg {number} ({keg_id})')
+            try:
+                if float(values['costofkeg']) < 0 or float(values['kegsizel']) <= 0:
+                    raise ValueError('cost or size is out of range')
+            except (TypeError, ValueError) as exc:
+                raise ValueError(f'Invalid numeric values for keg {number}: {exc}')
+            snapshot[str(number)] = values
+        return snapshot
+
+    def _new_keg_worker(self, number, keg_config):
+        """Create a worker using the stable queue and GPIO assignment for a tap."""
+        return read_keg_data(
+            self.queues[f'keg_data{number}'], self.queues[f'keg_message{number}'],
+            dict(keg_config), self.keg_pins[number], self.queues['tv_message_m2t'],
+            self.queues['led_data'])
+
+    @staticmethod
+    def _stop_worker(worker):
+        if worker is None:
+            return
+        worker.shutdown()
+        worker.join(timeout=5)
+        if worker.is_alive():
+            worker.terminate()
+            worker.join(timeout=2)
+
+    def reload_keg(self, keg_number, keg_config=None):
+        """Reload one tap; invalid config leaves the current worker untouched."""
+        number = str(keg_number)
+        if number not in self.keg_pins:
+            raise ValueError(f'Invalid keg number: {keg_number}')
+        with self._lock:
+            snapshot = self._load_snapshot()
+            new_config = dict(keg_config or snapshot[number])
+            old_config = dict(self.keg_configs[number])
+            name = f'keg_thread{number}'
+            old_worker = self.workers.get(name)
+            # GPIO cannot be claimed by two processes simultaneously. Stop the
+            # existing worker before starting its replacement, then recreate it
+            # if replacement startup fails.
+            self._stop_worker(old_worker)
+            replacement = self._new_keg_worker(number, new_config)
+            try:
+                replacement.start()
+            except Exception:
+                rollback = self._new_keg_worker(number, old_config)
+                try:
+                    rollback.start()
+                except Exception:
+                    logging.critical('Unable to restore keg worker %s', number,
+                                     exc_info=True)
+                    raise
+                self.workers[name] = rollback
+                raise
+            self.workers[name] = replacement
+            self.keg_configs[number] = dict(new_config)
+            self._published_configs[number] = dict(new_config)
+            logging.info('Reloaded keg worker %s (%s)', number, new_config['keg_id'])
+            return new_config
+
+    def _reload_snapshot(self, snapshot):
+        """Apply a validated snapshot, restoring prior workers if one fails."""
+        changed = [number for number, config in snapshot.items()
+                   if config != self.keg_configs.get(number)]
+        previous = {number: dict(self.keg_configs[number]) for number in changed}
+        applied = []
+        try:
+            for number in changed:
+                self.reload_keg(number, snapshot[number])
+                applied.append(number)
+        except Exception:
+            logging.error('Reload failed; rolling back changed keg workers', exc_info=True)
+            for number in reversed(applied):
+                try:
+                    self.reload_keg(number, previous[number])
+                except Exception:
+                    logging.critical('Unable to roll back keg worker %s', number,
+                                     exc_info=True)
+            raise
+
+    def _watch_config(self):
+        while not self._stop_watcher.wait(1.0):
+            try:
+                mtime = os.path.getmtime(self.config_path)
+                if mtime == self._config_mtime:
+                    continue
+                # Validate the complete snapshot before touching any worker.
+                snapshot = self._load_snapshot()
+                with self._lock:
+                    self._reload_snapshot(snapshot)
+                self._config_mtime = mtime
+            except Exception:
+                logging.error('Config change was rejected; retaining active workers', exc_info=True)
+
+    def shutdown(self):
+        self._stop_watcher.set()
+        if self._watcher.is_alive():
+            self._watcher.join(timeout=2)
+        stop_workers(list(self.workers.items()))
+
+    def callback(self, keg_number, *args, **kwargs):
+        return self.reload_keg(keg_number)
 
 
 def main():
@@ -292,18 +443,26 @@ def main():
         'temp_sensor_data': temp_sensor_data
     }
 
-    # Collect workers for cleanup
-    workers = [
-        ('keg_thread1', keg_thread1),
-        ('keg_thread2', keg_thread2),
-        ('keg_thread3', keg_thread3),
-        ('keg_thread4', keg_thread4),
-        ('keg_thread5', keg_thread5),
-        ('tv_thread', tv_thread),
-        ('pb_thread', pb_thread),
-        ('led_thread', led_thread),
-        ('temp_sensor_thread', temp_sensor_thread)
-    ]
+    # Hardware manager owns workers and supports validated live keg reloads.
+    manager = HardwareWorkerManager(
+        config_path, keg_configs, {
+            'keg_data1': keg_data1, 'keg_message1': keg_message1,
+            'keg_data2': keg_data2, 'keg_message2': keg_message2,
+            'keg_data3': keg_data3, 'keg_message3': keg_message3,
+            'keg_data4': keg_data4, 'keg_message4': keg_message4,
+            'keg_data5': keg_data5, 'keg_message5': keg_message5,
+            'tv_message_m2t': tv_message_m2t, 'tv_message_t2m': tv_message_t2m,
+            'pb_data': pb_data, 'led_data': led_data,
+            'temp_sensor_data': temp_sensor_data
+        }, tv_dict, {'1': 17, '2': 27, '3': 22, '4': 23, '5': 24})
+    for name, worker in [
+        ('keg_thread1', keg_thread1), ('keg_thread2', keg_thread2),
+        ('keg_thread3', keg_thread3), ('keg_thread4', keg_thread4),
+        ('keg_thread5', keg_thread5), ('tv_thread', tv_thread),
+        ('pb_thread', pb_thread), ('led_thread', led_thread),
+        ('temp_sensor_thread', temp_sensor_thread)]:
+        manager.register(name, worker)
+    workers = list(manager.workers.items())
 
     # Start all worker processes
     print("\nStarting hardware worker processes...")
@@ -348,7 +507,13 @@ def main():
     print("Starting Flask Server...")
     print("="*60)
 
-    app, socketio = create_app(queues, keg_configs)
+    # Older web_server versions do not accept a callback; keep compatibility
+    # without modifying that module.
+    if 'reload_callback' in inspect.signature(create_app).parameters:
+        app, socketio = create_app(queues, keg_configs, reload_callback=manager.callback)
+    else:
+        app, socketio = create_app(queues, keg_configs)
+    manager.start_watcher()
 
     # Create and start DataGatherer thread
     data_gatherer = DataGatherer(socketio, queues)
@@ -436,7 +601,7 @@ def main():
     print("="*60)
 
     data_gatherer.stop()
-    stop_workers(workers)
+    manager.shutdown()
 
     print("✓ Shutdown complete")
     sys.exit(0)

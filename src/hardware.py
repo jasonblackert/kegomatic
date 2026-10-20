@@ -17,7 +17,6 @@ import mysql.connector
 import glob
 import configparser
 from gpiozero import Button, PWMLED
-from signal import pause
 
 # Add script directory to path
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -132,6 +131,9 @@ class read_keg_data(multiprocessing.Process):
 
     def run(self):
         oz_per_l = 0.02957352956
+        # Keep this value local to the process; it is used when calculating
+        # empty-keg state and must be initialized before the first loop.
+        self.keg_id = self.keg_dict.get('keg_id', '')
         logging.info("="*60)
         logging.info(f"Starting read_keg_data thread for keg {self.keg_dict.get('keg_id', 'unknown')} on GPIO {self.gpio_pin}")
         logging.info("="*60)
@@ -180,7 +182,7 @@ class read_keg_data(multiprocessing.Process):
         if (percent_left < 0 or self.keg_id=='AC'):
             #print(self.keg_id)
             #print(percent_left)
-            precent_left = int(0)
+            percent_left = int(0)
             empty_keg = True
 
         #Set status to empty on startup
@@ -215,7 +217,7 @@ class read_keg_data(multiprocessing.Process):
                 if (percent_left < 0 or self.keg_id=='AC'):
                     #print(self.keg_id)
                     #print(percent_left)
-                    precent_left = int(0)
+                    percent_left = int(0)
                     empty_keg = True
 
                 if empty_keg:
@@ -247,7 +249,7 @@ class read_keg_data(multiprocessing.Process):
             if (percent_left < 0 or self.keg_id=='AC'):
                 #print(self.keg_id)
                 #print(percent_left)
-                precent_left = int(0)
+                percent_left = int(0)
                 empty_keg = True
             
             #print('Percent Left: ')
@@ -267,7 +269,8 @@ class read_keg_data(multiprocessing.Process):
                 logging.warning("Queue is full when writing keg data")
             #print "tick"
             time.sleep(.03)
-        pause() # gpiozero pair
+        button.when_pressed = None
+        button.close()
         print("Keg Thread exit.")
 
     def shutdown(self):
@@ -509,8 +512,9 @@ class led_control(multiprocessing.Process):
 
         except KeyboardInterrupt as ke:
             logging.warning(f"Keyboard Interrupt received: {ke}")
+        finally:
+            pwm.close()
 
-        pause() # paired with gpiozero
         print("led_control exit.")
 
     def shutdown(self):
@@ -657,7 +661,8 @@ class manage_tv_power(multiprocessing.Process):
                 logging.warning("Queue is full when writing to the tv_message_t2m queue.")
 
             time.sleep(.1)
-        ser.close()
+        if ser is not None:
+            ser.close()
         print("TV Thread Exit.")
 
     def shutdown(self):

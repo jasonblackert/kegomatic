@@ -31,6 +31,7 @@ socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
 # Global references to queues (set by web_main.py)
 _queues = {}
 _keg_configs = {}
+_reload_callback = None
 
 def set_queues(queues):
     """Set queue references from main application"""
@@ -41,6 +42,12 @@ def set_keg_configs(configs):
     """Set keg configuration dictionaries"""
     global _keg_configs
     _keg_configs = configs
+
+
+def set_reload_callback(callback):
+    """Set the main-process callback used for live keg reloads."""
+    global _reload_callback
+    _reload_callback = callback
 
 
 class DataGatherer(threading.Thread):
@@ -181,6 +188,24 @@ def get_logos():
         logging.error(f"Error listing logos: {e}")
         return jsonify({'logos': [], 'error': str(e)})
 
+def _write_config_atomically(config, config_path):
+    """Write a config parser without exposing a partially written file."""
+    directory = os.path.dirname(config_path)
+    fd, temp_path = tempfile.mkstemp(prefix='.kegs.config.', dir=directory, text=True)
+    try:
+        with os.fdopen(fd, 'w') as configfile:
+            config.write(configfile)
+            configfile.flush()
+            os.fsync(configfile.fileno())
+        os.replace(temp_path, config_path)
+    except Exception:
+        try:
+            os.unlink(temp_path)
+        except OSError:
+            pass
+        raise
+
+
 @app.route('/api/keg/edit', methods=['POST'])
 def edit_keg():
     """Edit existing keg configuration"""
@@ -221,17 +246,31 @@ def edit_keg():
         config.set(current_keg_id, 'PurchaseDate', keg_data.get('purchasedate', ''))
         config.set(current_keg_id, 'Logo', keg_data.get('logo', ''))
 
-        # Write config back to file
-        with open(config_path, 'w') as configfile:
-            config.write(configfile)
+        # Write config back to file atomically so the config watcher never sees
+        # a partially written file.
+        _write_config_atomically(config, config_path)
 
-        # Update global keg configs
-        _keg_configs[str(keg_number)] = dict(config.items(current_keg_id))
-        _keg_configs[str(keg_number)]['keg_id'] = current_keg_id
+        if _reload_callback:
+            try:
+                _reload_callback(keg_number)
+            except Exception as reload_error:
+                logging.error(f"Error reloading keg {keg_number}: {reload_error}")
+                return jsonify({'success': False, 'reloaded': False,
+                                'error': str(reload_error),
+                                'reload_error': str(reload_error)}), 500
+        else:
+            _keg_configs[str(keg_number)] = dict(config.items(current_keg_id))
+            _keg_configs[str(keg_number)]['keg_id'] = current_keg_id
 
+        if _reload_callback:
+            socketio.emit('config', {'kegs': _keg_configs})
+            socketio.emit('keg_reload', {'keg_number': int(keg_number),
+                                         'keg_id': current_keg_id,
+                                         'operation': 'edit'})
         logging.info(f"Edited keg {keg_number} (ID: {current_keg_id})")
 
-        return jsonify({'success': True, 'keg_id': current_keg_id})
+        return jsonify({'success': True, 'reloaded': bool(_reload_callback),
+                        'keg_id': current_keg_id})
 
     except Exception as e:
         logging.error(f"Error editing keg: {e}")
@@ -281,17 +320,32 @@ def replace_keg():
         # Update Active section
         config.set(active_section, keg_key, new_keg_id)
 
-        # Write config back to file
-        with open(config_path, 'w') as configfile:
-            config.write(configfile)
+        # Write config back to file atomically so the config watcher never sees
+        # a partially written file.
+        _write_config_atomically(config, config_path)
 
-        # Update global keg configs
-        _keg_configs[str(keg_number)] = dict(config.items(new_keg_id))
-        _keg_configs[str(keg_number)]['keg_id'] = new_keg_id
+        if _reload_callback:
+            try:
+                _reload_callback(keg_number)
+            except Exception as reload_error:
+                logging.error(f"Error reloading keg {keg_number}: {reload_error}")
+                return jsonify({'success': False, 'reloaded': False,
+                                'error': str(reload_error),
+                                'reload_error': str(reload_error)}), 500
+        else:
+            _keg_configs[str(keg_number)] = dict(config.items(new_keg_id))
+            _keg_configs[str(keg_number)]['keg_id'] = new_keg_id
 
+        if _reload_callback:
+            socketio.emit('config', {'kegs': _keg_configs})
+            socketio.emit('keg_reload', {'keg_number': int(keg_number),
+                                         'old_keg_id': current_keg_id,
+                                         'new_keg_id': new_keg_id,
+                                         'operation': 'replace'})
         logging.info(f"Replaced keg {keg_number}: {current_keg_id} -> {new_keg_id}")
 
-        return jsonify({'success': True, 'old_keg_id': current_keg_id, 'new_keg_id': new_keg_id})
+        return jsonify({'success': True, 'reloaded': bool(_reload_callback),
+                        'old_keg_id': current_keg_id, 'new_keg_id': new_keg_id})
 
     except Exception as e:
         logging.error(f"Error replacing keg: {e}")
@@ -698,10 +752,11 @@ def handle_disconnect():
     logging.info(f"Client disconnected")
 
 
-def create_app(queues, keg_configs):
+def create_app(queues, keg_configs, reload_callback=None):
     """Initialize and return the Flask app with SocketIO"""
     set_queues(queues)
     set_keg_configs(keg_configs)
+    set_reload_callback(reload_callback)
     return app, socketio
 
 

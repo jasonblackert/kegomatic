@@ -105,11 +105,11 @@ Kegs can be updated via the web UI settings menu or by editing the config file d
    - **Edit Current** — Modify keg details (name, brewery, type, ABV, IBU, cost, size, date, logo)
    - **Empty Keg** — Mark keg as empty by setting size to the amount poured (calculated from database)
    - **Replace Keg** — Swap in a new keg, preserving the old keg data in the config
-3. Changes require restarting the application to take effect
+3. Changes are applied live to the affected tap; no application restart is required. The worker is replaced with the new configuration while its queue remains connected to the UI.
 
 ### Via Config File
 
-Edit `src/config/kegs.config` (INI format), then **restart the application**.
+Edit `src/config/kegs.config` (INI format). The running application watches the file and applies valid changes automatically. SQL pour history is preserved by keg ID: editing or emptying an existing keg keeps its history, while replacing a keg creates a new ID with its own tally.
 
 ### Step 1 — Add a new keg entry
 
@@ -146,13 +146,9 @@ keg4: AC
 keg5: AC
 ```
 
-### Step 3 — Restart the Application
+### Step 3 — Apply the change
 
-```bash
-# Restart the application to load the new config
-pkill -f main.py
-python main.py --fullscreen
-```
+The running application detects the updated file and reloads the affected tap automatically. A restart is only needed if the application is not currently running or if a broader deployment change requires it.
 
 ---
 
