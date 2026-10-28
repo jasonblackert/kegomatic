@@ -179,7 +179,7 @@ class read_keg_data(multiprocessing.Process):
 
         #Calculate % left to start
         percent_left = int((((float(self.keg_dict['kegsizel']) - tally) + 0.001) / float(self.keg_dict['kegsizel']) ) * 100 )
-        if (percent_left < 0 or self.keg_id=='AC'):
+        if (percent_left <= 0 or self.keg_id=='AC'):
             #print(self.keg_id)
             #print(percent_left)
             percent_left = int(0)
@@ -214,7 +214,7 @@ class read_keg_data(multiprocessing.Process):
 
                 percent_left = int((((float(self.keg_dict['kegsizel']) - tally) + 0.001) / float(self.keg_dict['kegsizel']) ) * 100 )
                 
-                if (percent_left < 0 or self.keg_id=='AC'):
+                if (percent_left <= 0 or self.keg_id=='AC'):
                     #print(self.keg_id)
                     #print(percent_left)
                     percent_left = int(0)
@@ -246,7 +246,7 @@ class read_keg_data(multiprocessing.Process):
 
             percent_left = int((((float(self.keg_dict['kegsizel']) - tally) + 0.001) / float(self.keg_dict['kegsizel']) ) * 100 )
             
-            if (percent_left < 0 or self.keg_id=='AC'):
+            if (percent_left <= 0 or self.keg_id=='AC'):
                 #print(self.keg_id)
                 #print(percent_left)
                 percent_left = int(0)

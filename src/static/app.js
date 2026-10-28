@@ -77,7 +77,7 @@ function populateKegInfo() {
         if (statusElement && kegData.name && kegData.name.toUpperCase() === 'N/A') {
             statusElement.classList.add('empty');
             statusElement.classList.remove('pouring');
-            statusElement.innerHTML = '<span class="status-dot"></span> N/A';
+            statusElement.innerHTML = '<span class="status-dot"></span><span class="status-text">N/A</span>';
         }
     });
 }
@@ -296,23 +296,7 @@ function updateProgressBar(kegId, percent) {
         const roundedPercent = Math.round(percent);
         if (roundedPercent === 0) {
             percentText.textContent = 'EMPTY';
-            // Also update status to Keg Empty
-            const statusElement = document.getElementById(`status-${kegId}`);
-            if (statusElement) {
-                statusElement.classList.add('empty');
-                statusElement.classList.remove('pouring');
-                const statusText = statusElement.querySelector('.status-text') || statusElement;
-                if (statusText.querySelector) {
-                    // Has child elements, update text node
-                    const textNodes = Array.from(statusText.childNodes).filter(n => n.nodeType === 3);
-                    if (textNodes.length > 0) {
-                        textNodes[0].textContent = 'Keg Empty';
-                    }
-                } else {
-                    // Direct text content
-                    statusElement.innerHTML = '<span class="status-dot"></span> Keg Empty';
-                }
-            }
+            setPourStatus(kegId, 'Keg Empty');
         } else {
             percentText.textContent = `${roundedPercent}%`;
         }
@@ -334,12 +318,10 @@ function updateProgressBarAnimation(kegId, isPouring) {
 // Set pour status
 function setPourStatus(kegId, status) {
     const statusElement = document.getElementById(`status-${kegId}`);
-    const kegCard = document.querySelector(`#keg-${kegId} .keg-card`);
 
-    if (!statusElement || !kegCard) return;
+    if (!statusElement) return;
 
     const statusText = statusElement.querySelector('.status-text');
-    const statusDot = statusElement.querySelector('.status-dot');
 
     // Update text
     if (statusText) {
@@ -348,11 +330,9 @@ function setPourStatus(kegId, status) {
 
     // Update visual state
     statusElement.classList.remove('pouring', 'empty');
-    kegCard.classList.remove('pouring');
 
     if (status === 'Pour Active') {
         statusElement.classList.add('pouring');
-        kegCard.classList.add('pouring');
     } else if (status === 'Keg Empty') {
         statusElement.classList.add('empty');
     }
